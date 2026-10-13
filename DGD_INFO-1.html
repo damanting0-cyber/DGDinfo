@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DGD INFO</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+:root{--pre:'Pretendard','Noto Sans KR',sans-serif;--bg:#14050c;--card:#410E24;--cell:#5F0B2F;--hot:#CF035C}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg)}
+body{font-family:var(--pre);color:#fff;display:flex;justify-content:center;padding:16px 0 40px}
+#app{width:372px;display:flex;flex-direction:column;gap:10px;transition:filter .17s ease-out}
+html.lock #app{filter:blur(7px)}
+html.lock.unb #app{filter:none}
+#pop.up #sheet,#hpop.up #hsheet,#cpop.up #csheet{z-index:3}
+#app,#pop,#hpop{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.card{background:var(--card);border-radius:30px}
+header{cursor:pointer;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;overflow:hidden}
+header.grown{opacity:0;pointer-events:none}
+header svg{height:20px;width:auto;display:block}
+#today{font-weight:700;font-size:21px;line-height:1;white-space:nowrap}
+.tt{padding:12px}
+
+/* 로딩 스플래시 화면 */
+#splash{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;opacity:1;overflow:hidden;transition:opacity .5s ease .08s}
+#splash::before{content:'';position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(207,3,92,.6),rgba(207,3,92,0) 70%);filter:blur(34px);opacity:0;animation:sglow 1.8s ease-in-out .1s infinite alternate}
+#splash svg{position:relative;width:140px;height:auto;display:block;animation:sfocus 1.2s cubic-bezier(.16,.9,.24,1) both}
+#splash path{transform-box:fill-box;transform-origin:center;animation:spin .8s cubic-bezier(.2,1.1,.3,1) both}
+#splash path:nth-child(1){animation-delay:.05s}#splash path:nth-child(2){animation-delay:.12s}#splash path:nth-child(3){animation-delay:.19s}
+#splash path:nth-child(4){animation-delay:.3s}#splash path:nth-child(5){animation-delay:.37s}#splash path:nth-child(6){animation-delay:.44s}#splash path:nth-child(7){animation-delay:.51s}
+#splash.hide{opacity:0;pointer-events:none}
+#splash.hide svg{animation:sout .55s cubic-bezier(.5,0,.8,.35) both}
+@keyframes sfocus{from{filter:blur(26px);transform:scale(1.5)}55%{filter:blur(0)}to{filter:blur(0);transform:scale(1)}}
+@keyframes spin{from{opacity:0;transform:translateY(30px) scale(.6) rotate(-8deg)}to{opacity:1;transform:none}}
+@keyframes sglow{from{opacity:.25;transform:scale(.85)}to{opacity:.8;transform:scale(1.15)}}
+@keyframes sout{to{opacity:0;filter:blur(18px);transform:scale(.55)}}
+@media (prefers-reduced-motion:reduce){#splash *,#splash::before{animation:none!important}#splash::before{opacity:.4}}
+
+/* 카드 내부 헤더 (급식/시간표 위 작은 버튼줄) */
+.mbar{display:flex;align-items:center;justify-content:space-between;padding:0 4px 10px;margin:0}
+.mt{font:700 16px var(--pre);opacity:.9;padding-left:4px;flex:0 0 auto}
+.mini{height:28px;border:0;border-radius:14px;background:var(--card);color:#fff;font:600 12px var(--pre);padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:opacity .15s;flex:0 0 auto}
+.mini svg{width:14px;height:14px;display:block}
+.mini.ic{padding:0;width:34px;justify-content:center}
+.mini.ar{padding:0;width:28px;justify-content:center;font-size:17px;line-height:1;background:var(--cell)}
+.mini.here{opacity:.45}
+.wk{margin-left:auto;display:flex;align-items:center;gap:2px}
+#wlab,#tlab{font:600 11px var(--pre);opacity:.75;min-width:76px;text-align:center;white-space:nowrap}
+
+/* 반 선택: 누르면 아래로 펼쳐지는 3열 목록, 고른 칸으로 하이라이트가 미끄러져 감 */
+#cls{position:absolute;top:0;left:0;width:100%;height:40px;border-radius:30px;background:var(--card);overflow:hidden;transition:height .32s cubic-bezier(.32,.72,0,1),width .32s cubic-bezier(.32,.72,0,1),box-shadow .3s ease,background-color .3s ease}
+#chead{display:flex;align-items:center;justify-content:center;width:100%;height:40px;border:0;background:transparent;color:#fff;font:700 15px var(--pre);padding:0;cursor:pointer;white-space:nowrap}
+#chead .clab{display:block;line-height:1;transition:opacity .18s ease,filter .18s ease,transform .18s ease}
+#chead .clab.out{opacity:0;filter:blur(4px);transform:translateY(-6px)}
+.toprow.act #cls{height:var(--ah,220px);width:calc(200% + 10px);background:rgba(65,14,36,.97);box-shadow:0 14px 34px rgba(0,0,0,.5)}
+#clist{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 10px 10px;opacity:0;visibility:hidden;transition:opacity .2s ease,visibility 0s linear .32s}
+.toprow.act #clist{opacity:1;visibility:visible;transition:opacity .25s ease .08s,visibility 0s}
+#cind{position:absolute;left:0;top:0;width:0;height:0;border-radius:18px;background:var(--hot);pointer-events:none;transition:left .32s cubic-bezier(.32,.72,0,1),top .32s cubic-bezier(.32,.72,0,1),width .32s cubic-bezier(.32,.72,0,1),height .32s cubic-bezier(.32,.72,0,1),opacity .2s ease}
+.c{position:relative;z-index:1;height:36px;border:0;border-radius:18px;background:transparent;color:rgba(255,255,255,.72);font:700 14px var(--pre);padding:0;cursor:pointer;white-space:nowrap;transition:color .2s}
+.c.on{color:#fff}
+#detail,#heat{flex:1 1 0;min-width:0;height:40px;margin-left:10px;padding:0;border:0;border-radius:30px;background:var(--card);color:#fff;font:700 15px var(--pre);cursor:pointer;white-space:nowrap;overflow:hidden}
+#detail.grown,#heat.grown{opacity:0;pointer-events:none}
+#note{text-align:center;font-size:11px;color:rgba(255,255,255,.4);min-height:14px;padding:0 10px}
+
+/* 학생 조회 팝업 */
+#pop,#hpop,#cpop{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;font-family:var(--pre);color:#fff;opacity:1;transition:opacity .24s ease}
+#pop[hidden],#hpop[hidden],#cpop[hidden]{display:none}
+#hpop,#cpop{align-items:flex-start;padding-top:2vh}
+#popbg,#hbg,#cbg{position:absolute;inset:0;background:rgba(10,2,6,.55);will-change:opacity}
+.glass{transform:translateZ(0);will-change:transform;position:absolute;z-index:1;pointer-events:none;background:rgba(65,14,36,.64);border:1px solid rgba(255,255,255,.1)}
+.shell{position:absolute;left:0;top:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible}
+.shell path{fill:#410E24}
+.ghost{position:absolute;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;overflow:hidden;color:#fff;font:700 17px var(--pre);white-space:nowrap}
+.ghost.gh{justify-content:space-between;padding:0 24px}
+.ghost svg{height:20px;width:auto;display:block}
+.ghost.gh div{font-weight:700;font-size:21px;line-height:1}
+#sheet,#hsheet{width:372px;height:min(calc(96vh / var(--z,1)),900px);overflow-y:auto;position:relative;z-index:1;border:1px solid transparent;border-radius:30px;padding:18px 12px 16px;scrollbar-width:none;opacity:1}
+#sheet{display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+#sheet>*{flex-shrink:0}
+#sheet>#sbw{flex:1 1 0;min-height:0}
+#sbw{position:relative;display:flex;flex-direction:column;margin:0 -12px}
+#sbody{flex:1 1 0;min-height:0;overflow-y:auto;scrollbar-width:none;padding:0 12px 16px}
+#sbody::-webkit-scrollbar{display:none}
+#sq{flex:0 0 auto}
+#srow{display:flex;gap:8px;flex:0 0 auto;margin:4px 0 14px}
+#sheet .ch{margin-bottom:14px}
+#srow #sq{flex:1 1 0;min-width:0;width:auto}
+#fbtn{flex:0 0 auto;display:flex;align-items:center;gap:6px;height:38px;border:0;border-radius:19px;background:var(--cell);color:#fff;font:600 14px var(--pre);padding:0 14px;cursor:pointer;transition:background .2s}
+#fbtn.on{background:var(--hot)}
+#fbtn i{font-style:normal;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;overflow:hidden;white-space:nowrap;min-width:18px;max-width:40px;height:18px;border-radius:9px;background:var(--hot);font-size:11px;font-weight:700;line-height:1;padding:0 5px;font-variant-numeric:tabular-nums;transition:max-width .32s cubic-bezier(.32,.72,0,1),min-width .32s cubic-bezier(.32,.72,0,1),padding .32s cubic-bezier(.32,.72,0,1),margin .32s cubic-bezier(.32,.72,0,1),opacity .2s ease,background .2s}
+#fbtn.on i{background:rgba(255,255,255,.3)}
+#fbtn i[hidden]{max-width:0;min-width:0;padding:0;margin-left:-6px;opacity:0}
+#fwrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s ease-out}
+#fwrap.open{grid-template-rows:1fr}
+#fwrap>.fwi{overflow:hidden;min-height:0}
+#fwrap .fbox{visibility:hidden;opacity:0;transform:translateY(-8px);transition:opacity .2s ease-out,transform .22s ease-out,visibility 0s linear .22s}
+#fwrap.open .fbox{visibility:visible;opacity:1;transform:none;transition-delay:0s}
+#fwrap .fbox{padding-bottom:1px}
+.ch{flex:0 0 auto}
+#sheet::-webkit-scrollbar,#hsheet::-webkit-scrollbar{display:none}
+#sheet,#hsheet,#csheet{transform-origin:50% 50%}
+.ch{position:relative;display:flex;align-items:center;justify-content:flex-end;height:34px;margin-bottom:12px}
+.ct{position:absolute;left:0;right:0;top:0;line-height:34px;text-align:center;font-weight:700;font-size:19px;pointer-events:none}
+.nav{width:34px;height:34px;border:0;border-radius:17px;background:var(--cell);color:#fff;font:700 18px/1 var(--pre);cursor:pointer;padding:0}
+.nav.x{position:relative;z-index:1;font-size:14px}
+#sq{width:100%;height:38px;border:0;border-radius:19px;background:var(--cell);color:#fff;font:600 14px var(--pre);padding:0 14px;outline:0;-webkit-appearance:none;appearance:none;-webkit-user-select:text;user-select:text}
+#sq::placeholder{color:rgba(255,255,255,.45)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:30px;padding:0 11px;border:0;border-radius:15px;background:var(--cell);color:#fff;font:600 13px var(--pre);cursor:pointer;transition:background .15s}
+.chip small{font-size:11px;font-weight:600;opacity:.6;margin-left:1px}
+.chip.on{background:var(--hot)}.chip.on small{opacity:.85}
+/* 필터 UI: 세그먼트(성별·생월) + 탭(출신초·학년) + 선택 패널 */
+.seg{display:flex;align-items:center;gap:2px;padding:4px;border-radius:24px;background:rgba(255,255,255,.07);margin-top:8px}
+.seg button{flex:1 1 0;min-width:0;height:34px;border:0;border-radius:17px;background:transparent;color:rgba(255,255,255,.82);font:600 13px var(--pre);padding:0;white-space:nowrap;cursor:pointer;transition:background .18s,color .18s}
+.seg button.on{background:var(--hot);color:#fff;font-weight:700}
+.seg{position:relative}
+.seg.hasind button{position:relative;z-index:1}
+.seg.hasind button.on{background:transparent}
+.seg .ind{position:absolute;top:4px;bottom:4px;left:0;width:0;border-radius:17px;background:var(--hot);z-index:0;pointer-events:none;transition:left .32s cubic-bezier(.32,.72,0,1),width .32s cubic-bezier(.32,.72,0,1)}
+#fg{margin-top:0;min-width:0;gap:2px;padding:4px}
+#fg button{flex:1 1 0;padding:0}
+.fseg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:8px;row-gap:0;align-items:stretch;position:relative;transition:row-gap .22s ease-out}
+.fseg.open{row-gap:8px}
+#mseg{margin-top:8px}
+#mseg #fg{grid-column:1;grid-row:1;margin:0;position:relative;z-index:1}
+#mseg #mbtn{grid-column:2;grid-row:1;min-width:0;width:auto}
+#mseg #mpw{grid-column:1/-1;grid-row:2}
+#ftabs{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.ft{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:42px;border:0;border-radius:22px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.45);font:600 13px var(--pre);padding:9px 16px;cursor:pointer;text-align:left;position:relative;z-index:1;transition:background .25s,color .25s}
+.ft .tn{flex:0 0 auto;font-weight:700}
+.ft em{flex:1 1 0;min-width:0;font-style:normal;font-size:12px;font-weight:600;line-height:1.4;text-align:right;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;color:rgba(255,255,255,.92)}
+.ft em:empty{display:none}
+.ft.set{background:rgba(207,3,92,.24);color:#fff}
+/* 열린 탭은 배경을 투명하게 하고, 탭+패널은 아래 SVG 한 덩어리로 그림 */
+.ft.act{background:transparent;color:#fff}
+.fsvg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:0}
+.fsvg .sh{fill:var(--cell);opacity:0;transition:opacity .25s ease-out}
+.fseg.open>.fsvg .sh{opacity:1}
+.fslot{grid-column:1/-1}
+.fslot,#mpw{position:relative;z-index:1;display:grid;grid-template-rows:1fr;min-height:0;transition:grid-template-rows .22s ease-out}
+.fslot.shut,#mpw.shut{grid-template-rows:0fr}
+.fslot>.fpi,#mpw>.fpi{overflow:hidden;min-height:0}
+.fpan,#mpan{padding:12px;display:flex;flex-direction:column;gap:8px;transition:opacity .2s ease-out,transform .22s ease-out}
+.fslot.shut .fpan,#mpw.shut #mpan{opacity:0;transform:translateY(-10px)}
+.fpan .chip,#mpan .chip{background:rgba(255,255,255,.1);height:30px;font-size:13px;border-radius:12px;width:auto;min-width:0;padding:0;text-align:center;border-radius:14px}
+.fpan .chip.on,#mpan .chip.on{background:var(--hot)}
+.fpan .chip[data-clear],#mpan .chip[data-clear]{align-self:start;width:auto;padding:0 16px}
+.four{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.four .chip{height:30px}
+.six{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+html{scrollbar-gutter:stable}
+html.lock,html.lock body{overflow:hidden}
+#sbody,#hbody,#hsheet{overscroll-behavior:contain}
+#fcnt{display:flex;align-items:center;justify-content:space-between;margin:12px 6px 8px;font:700 13px var(--pre)}
+#frs{border:0;border-radius:13px;height:26px;padding:0 12px;background:var(--cell);color:#fff;font:600 12px var(--pre);cursor:pointer}
+#sres{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 5px}
+.sc{height:46px;margin-bottom:5px;border:0;border-radius:14px;background:var(--cell);color:#fff;font-family:var(--pre);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;transition:background .14s}
+.sc span{font-size:9px;font-weight:600;opacity:.6;white-space:nowrap;letter-spacing:-.3px}.sc b{font-size:15px;font-weight:700}
+.sc.on{background:var(--hot)}
+.sc.pre{opacity:0}
+.sfade{position:absolute;left:0;right:0;height:52px;z-index:3;pointer-events:none;opacity:0;transition:opacity .2s;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.sfade.t{top:0;background:linear-gradient(to bottom,rgb(46,10,26),rgba(46,10,26,0));-webkit-mask-image:linear-gradient(to bottom,#000 38%,transparent);mask-image:linear-gradient(to bottom,#000 38%,transparent)}
+.sfade.b{bottom:0;background:linear-gradient(to top,rgb(46,10,26),rgba(46,10,26,0));-webkit-mask-image:linear-gradient(to top,#000 38%,transparent);mask-image:linear-gradient(to top,#000 38%,transparent)}
+#sbw.st .sfade.t,#sbw.sbt .sfade.b{opacity:1}
+.dp{grid-column:1/-1;display:grid;grid-template-rows:0fr;transition:grid-template-rows .2s ease,margin-bottom .2s ease}
+.dp.open{grid-template-rows:1fr;margin-bottom:6px}
+.dp>div{overflow:hidden;min-height:0;background:var(--hot);border-radius:18px;clip-path:inset(0 round 18px)}
+.di{padding:12px 16px 14px}
+.di h4{margin:0 0 8px;font:700 18px var(--pre)}.di h4 small{font-size:12px;font-weight:500;opacity:.75;margin-left:8px}
+.dg{display:grid;grid-template-columns:54px 1fr;gap:5px 8px;font-size:13px}
+.dg span{opacity:.75;font-weight:600;font-size:12px}.dg b{font-weight:600}
+.sl{grid-column:1/-1;text-align:center;padding:30px 0;font-size:13px;opacity:.6}
+
+/* 크레딧 */
+#csheet{width:300px;position:relative;z-index:1;border:1px solid transparent;border-radius:30px;padding:26px 22px 24px;text-align:center}
+#cimgw{width:190px;height:190px;margin:0 auto 18px;border-radius:30px;overflow:hidden;background:var(--cell);display:flex;align-items:center;justify-content:center;font:600 12px var(--pre);color:rgba(255,255,255,.5)}
+#cimgw img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+#cimgw.noimg img{display:none}
+#cimgw.noimg::after{content:'mashiro.jpg';letter-spacing:.2px}
+#cmade{font:700 22px var(--pre);margin:0}
+#csub{font:600 12px var(--pre);opacity:.55;margin-top:6px}
+#csheet #cclose{position:absolute;top:14px;right:14px;margin:0;z-index:2}
+
+/* 생일 히트맵 (학생 조회와 같은 카드·칩 디자인) */
+#hsheet{display:flex;flex-direction:column;overflow-y:auto;height:auto;max-height:min(calc(96vh / var(--z,1)),900px)}
+#hsheet>*{flex-shrink:0}
+#hsheet>.spane{flex:0 1 auto}
+/* 스크롤 영역: 선택 테두리(스트로크)가 가장자리에서 잘리지 않게 사방 여백을 둠 */
+#hseg{margin:0 0 12px}
+.spane{display:flex;flex-direction:column;min-height:0}
+.spane[hidden]{display:none}
+.spane>*{flex-shrink:0}
+.spane>#hbody{flex:0 1 auto;min-height:110px;overflow-y:auto;scrollbar-width:none;padding:6px;margin:-6px}
+.spane>.ss{flex:0 1 auto}
+.ss{min-height:110px;overflow-y:auto;scrollbar-width:none;padding:6px;margin:-6px;display:flex;flex-direction:column;gap:8px;overscroll-behavior:contain}
+.ss::-webkit-scrollbar{display:none}
+.ss>*{flex-shrink:0}
+.sbox{background:rgba(10,2,6,.28);border-radius:20px;padding:10px 10px 12px}
+.abar{--r:12px;display:flex;gap:2px;height:34px}
+.abar.sm{--r:9px;height:24px}
+.ab{position:relative;border:0;padding:0;min-width:0;cursor:pointer;transition:opacity .18s;border-radius:4px}
+.ab:first-child{border-radius:var(--r) 4px 4px var(--r)}
+.ab:last-child{border-radius:4px var(--r) var(--r) 4px}
+.ab:only-child{border-radius:var(--r)}
+.ss.hasSel .ab:not(.sel){opacity:.4}
+.ab.sel{z-index:1;border-radius:8px;box-shadow:0 0 0 2px #fff}
+.ab.sel:first-child{border-radius:var(--r) 8px 8px var(--r)}
+.ab.sel:last-child{border-radius:8px var(--r) var(--r) 8px}
+.ab.sel:only-child{border-radius:var(--r)}
+.rw{margin-bottom:8px}
+.rw:last-child{margin-bottom:0}
+.crow{display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:center}
+.crow .cl{font:700 12px var(--pre);opacity:.8}
+.lgd{display:flex;flex-wrap:wrap;gap:6px 10px;margin:12px 4px 0;font:600 11px var(--pre);opacity:.9}
+.lgd span{display:flex;align-items:center;gap:4px}
+.lgd i{width:10px;height:10px;border-radius:3px;display:block}
+.lgd b{opacity:.6;font-weight:600}
+.spslot{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.22,.61,.36,1)}
+.spslot.open{grid-template-rows:1fr}
+.spi{overflow:hidden;min-height:0}
+.spb{position:relative;margin-top:10px;background:#2b0817;border-radius:18px;padding:10px 8px 4px}
+.spb::before{content:'';position:absolute;top:-5px;left:calc(var(--cx,50%) - 6px);width:12px;height:12px;background:#2b0817;border-radius:3px;transform:rotate(45deg)}
+.spslot:not(.open) .spb{opacity:0;transition:opacity .15s}
+.sph{padding:70px 16px;text-align:center;font-size:13px;font-weight:600;opacity:.6;background:rgba(10,2,6,.28);border-radius:20px}
+#hbody::-webkit-scrollbar{display:none}
+#hnext,#hinfo{background:rgba(10,2,6,.28);border-radius:20px;padding:10px 10px 4px;min-height:50px}
+#hnext{margin-bottom:8px}
+.hh{display:flex;align-items:baseline;gap:8px;margin:2px 4px 8px;font:700 17px var(--pre)}
+.hh small{font-size:12px;font-weight:600;opacity:.65}
+.hh small.dd{opacity:1;background:var(--hot);border-radius:10px;padding:2px 8px;margin-left:auto;align-self:center}
+.hh.lk{cursor:pointer}
+.hres{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 5px}
+#hleg{display:flex;align-items:center;justify-content:space-between;margin:12px 6px 8px;font:700 13px var(--pre)}
+.lg{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;opacity:.8}
+.lg i{width:12px;height:12px;border-radius:4px;display:block}
+.l0{background:rgba(255,255,255,.07)}.l1{background:#7d0b3d}.l2{background:#a8074f}.l3{background:#cf035c}.l4{background:#ff4d9a}
+#hgrid{display:grid;grid-template-columns:repeat(19,minmax(0,1fr));gap:3px;padding:4px 4px 6px}
+.hc{aspect-ratio:1;border:0;border-radius:4px;padding:0;display:block;cursor:pointer;position:relative;transition:transform .1s,box-shadow .1s}
+.hc.on{box-shadow:0 0 0 2px #fff;transform:scale(1.12);z-index:1}
+.hc.td{transform:scale(1.4);z-index:2}
+.hc.td.on{transform:scale(1.4)}
+
+
+/* ===== 카드 내부 헤더 (주 이동) ===== */
+.tt,.ml{padding:14px}
+.mt{display:none}
+.mbar{justify-content:flex-start;padding:0 0 12px}
+.mbar{height:32px;box-sizing:content-box}
+.wk{margin-left:0;display:grid;grid-template-columns:32px 120px 32px;gap:8px;align-items:center;justify-content:start}
+.mini.ar{width:32px;height:32px;border-radius:16px;padding:0;justify-content:center;flex:0 0 32px}
+.mini.ar svg{width:16px;height:16px;display:block}
+#wlab,#tlab{font:600 17px var(--pre);font-variant-numeric:tabular-nums;opacity:1;width:120px;min-width:120px;max-width:120px;height:32px;line-height:32px;position:relative;top:.7px;overflow:hidden;white-space:nowrap;font-feature-settings:'tnum';padding:0;text-align:center}
+
+/* ===== 상단 버튼 3등분 ===== */
+.toprow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;position:relative;z-index:30}
+.clsw{flex:none;position:relative;height:40px}
+#detail,#heat{margin-left:0;width:100%}
+#detail.pcon,#heat.pcon{background:var(--hot)}
+
+/* ===== 시간표: 요일별 세로 열 ===== */
+#ttl .tcols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;transition:opacity .15s ease,filter .15s ease,transform .15s ease}
+#ttl.swap .tcols{opacity:.35;filter:blur(2px);transform:scale(.985)}
+.tcol{display:flex;flex-direction:column;gap:8px;min-width:0}
+.td{text-align:center;font:600 16px/1 var(--pre);white-space:nowrap}
+.tb{display:grid;grid-template-rows:repeat(7,minmax(0,1fr));gap:3px;height:190px;padding:5px;border-radius:18px;background:var(--cell);transition:background .15s}
+.tcol.hot .tb{background:var(--hot)}
+.tg{display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;border-radius:11px;background:rgba(255,255,255,.14);font:700 12px/1.1 var(--pre);text-align:center;word-break:keep-all;overflow-wrap:anywhere;padding:0 1px}
+.tn0{grid-row:1/8;display:flex;align-items:center;justify-content:center;font:600 11px var(--pre);opacity:.45}
+
+/* ===== 급식: 날짜 알약 + 상세 카드 ===== */
+#meals{display:flex;gap:10px;align-items:stretch}
+.mpills{flex:0 0 74px;display:flex;flex-direction:column;gap:6px;min-height:194px}
+.mp{flex:1 1 0;min-height:34px;border:0;border-radius:20px;background:var(--cell);color:#fff;font:700 16px var(--pre);padding:0;cursor:pointer;transition:background .15s,opacity .15s}
+.mp.none{opacity:.55}
+.mp.today{background:var(--hot)}
+.mp.on{box-shadow:inset 0 0 0 2px #fff;opacity:1}
+.mdet{flex:1 1 0;min-width:0;border-radius:24px;background:var(--cell);padding:16px 18px;overflow:auto;scrollbar-width:none;transition:background .3s ease}
+.mdet.hot{background:var(--hot)}
+.mdet::-webkit-scrollbar{display:none}
+.mdd{font:700 30px/1 var(--pre);margin-bottom:12px}
+.mdet ul{margin:0;padding:0;list-style:none;font:600 16px/1.5 var(--pre);word-break:keep-all;overflow-wrap:anywhere}
+.mdet li{break-inside:avoid}
+.mnone{font:600 15px var(--pre);opacity:.8}
+
+/* 검색·통계 결과 열 수 (모바일 4 / PC 6) */
+#sres,.hres{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr))}
+
+/* PC에서만 쓰는 우측 패널 */
+#panel{display:none}
+
+@media (min-width:900px){
+  html{scrollbar-gutter:auto}
+  html,body{overflow:hidden}
+  body{display:block;padding:0}
+  #app{position:relative;width:auto;height:calc(100vh / var(--z,1));padding:24px;gap:10px;
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:48px minmax(0,1fr) minmax(0,1fr);
+    grid-template-areas:"hdr top" "ml panel" "tt panel"}
+  header,.toprow,.clsw,#cls,#chead,#detail,#heat{height:48px}
+  header svg,.ghost svg{height:24px}
+  #today{font-size:24px}
+  #detail,#heat{font-size:17px}
+  #hdr{grid-area:hdr}
+  .toprow{grid-area:top}
+  #heat{order:2}#detail{order:3}
+  .ml{grid-area:ml}.tt{grid-area:tt}
+  .ml,.tt{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  #meals,#ttl{flex:1 1 0;min-height:0}
+  #note{position:absolute;left:0;right:0;bottom:5px;pointer-events:none}
+
+  /* 급식: 위에 날짜 알약 가로 배치, 아래 상세 카드 */
+  #meals{flex-direction:column}
+  .mpills{flex:0 0 auto;flex-direction:row;min-height:0}
+  .mp{height:40px;min-height:0;font-size:17px}
+  .mdet{min-height:0;padding:18px 22px}
+  .mdd{font-size:36px;margin-bottom:14px}
+  .mdet ul{font-size:18px}
+  .mdet ul.two{column-count:2;column-gap:24px}
+
+  /* 시간표: 남는 높이를 열이 가득 채움 */
+  #ttl{display:flex;flex-direction:column}
+  #ttl .tcols{flex:1 1 0;min-height:0}
+  .tb{flex:1 1 0;height:auto;min-height:0}
+  .td{font-size:18px}
+  .tg{font-size:15px}
+
+  /* 우측 패널: 팝업 대신 인라인으로 */
+  #panel{display:block;grid-area:panel;position:relative;overflow:hidden;min-height:0}
+  #panel #pop,#panel #hpop{position:absolute;inset:0;z-index:1;display:block}
+  #panel #pop[hidden],#panel #hpop[hidden]{display:none}
+  #panel #popbg,#panel #hbg{display:none}
+  #panel #sheet,#panel #hsheet{width:100%;height:100%;max-height:none;border:0;border-radius:0;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;padding:20px 20px 16px}
+  #panel .nav.x{display:none}
+  #panel .glass,#panel .shell,#panel .ghost{display:none}
+  #panel #pop,#panel #hpop{padding:0}
+  #panel .sfade.t{background:linear-gradient(to bottom,#410E24,rgba(65,14,36,0))}
+  #panel .sfade.b{background:linear-gradient(to top,#410E24,rgba(65,14,36,0))}
+  #hgrid{grid-template-columns:repeat(31,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <svg viewBox="15 15 51 30" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M24.6521 15.4786C26.9696 15.4786 29.4304 17.8716 29.4304 22.2507C29.4304 26.3906 26.9696 28.8075 24.6521 28.8075H15V15.4786H24.6521ZM17.4369 26.6299H23.7203C25.2494 26.6299 27.0412 25.0027 27.0412 22.2507C27.0412 19.2356 25.2494 17.6562 23.7203 17.6562H17.4369V26.6299Z"/><path d="M38.5171 21.7482H45.6128V23.9258C44.8961 27.611 41.9097 29.0468 38.2782 29.0468C33.6911 29.0468 31.1108 25.9599 31.1108 22.1311C31.1108 18.0869 33.6911 15 38.2782 15C42.2442 15 44.705 16.699 45.2784 19.8338H42.8892C42.4592 17.8237 40.9779 17.1537 38.3021 17.1537C34.8856 17.1537 33.4999 18.9484 33.4999 22.1311C33.4999 25.0984 34.8856 26.8931 38.3021 26.8931C40.6673 26.8931 42.6503 26.4145 43.152 23.9258H38.5171V21.7482Z"/><path d="M57.8993 15.4786C60.2168 15.4786 62.6776 17.8716 62.6776 22.2507C62.6776 26.3906 60.2168 28.8075 57.8993 28.8075H48.2472V15.4786H57.8993ZM50.6842 26.6299H56.9676C58.4966 26.6299 60.2885 25.0027 60.2885 22.2507C60.2885 19.2356 58.4966 17.6562 56.9676 17.6562H50.6842V26.6299Z"/><path d="M15.4778 31.4318H17.867V44.7607H15.4778V31.4318Z"/><path d="M21.2062 31.4318H23.5953L32.0289 41.3866V31.4318H34.4181V44.7607H32.0289L23.5953 34.8298V44.7607H21.2062V31.4318Z"/><path d="M37.2815 31.4318H50.0156V33.6094H39.6706V37.175H49.7767V39.3526H39.6706V44.7607H37.2815V31.4318Z"/><path d="M58.737 42.8463C62.1057 42.8463 63.6109 40.9319 63.6109 37.9886C63.6109 35.0452 62.1057 33.1308 58.737 33.1308C55.3445 33.1308 53.8393 35.0452 53.8393 37.9886C53.8393 40.9319 55.3445 42.8463 58.737 42.8463ZM51.4502 37.9886C51.4502 34.1359 54.0543 30.9771 58.737 30.9771C63.3958 30.9771 66 34.1359 66 37.9886C66 41.8413 63.3958 45 58.737 45C54.0543 45 51.4502 41.8413 51.4502 37.9886Z"/></svg>
+</div>
+
+<div id="app">
+  <header class="card" id="hdr">
+    <svg viewBox="15 15 51 30" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M24.6521 15.4786C26.9696 15.4786 29.4304 17.8716 29.4304 22.2507C29.4304 26.3906 26.9696 28.8075 24.6521 28.8075H15V15.4786H24.6521ZM17.4369 26.6299H23.7203C25.2494 26.6299 27.0412 25.0027 27.0412 22.2507C27.0412 19.2356 25.2494 17.6562 23.7203 17.6562H17.4369V26.6299Z"/><path d="M38.5171 21.7482H45.6128V23.9258C44.8961 27.611 41.9097 29.0468 38.2782 29.0468C33.6911 29.0468 31.1108 25.9599 31.1108 22.1311C31.1108 18.0869 33.6911 15 38.2782 15C42.2442 15 44.705 16.699 45.2784 19.8338H42.8892C42.4592 17.8237 40.9779 17.1537 38.3021 17.1537C34.8856 17.1537 33.4999 18.9484 33.4999 22.1311C33.4999 25.0984 34.8856 26.8931 38.3021 26.8931C40.6673 26.8931 42.6503 26.4145 43.152 23.9258H38.5171V21.7482Z"/><path d="M57.8993 15.4786C60.2168 15.4786 62.6776 17.8716 62.6776 22.2507C62.6776 26.3906 60.2168 28.8075 57.8993 28.8075H48.2472V15.4786H57.8993ZM50.6842 26.6299H56.9676C58.4966 26.6299 60.2885 25.0027 60.2885 22.2507C60.2885 19.2356 58.4966 17.6562 56.9676 17.6562H50.6842V26.6299Z"/><path d="M15.4778 31.4318H17.867V44.7607H15.4778V31.4318Z"/><path d="M21.2062 31.4318H23.5953L32.0289 41.3866V31.4318H34.4181V44.7607H32.0289L23.5953 34.8298V44.7607H21.2062V31.4318Z"/><path d="M37.2815 31.4318H50.0156V33.6094H39.6706V37.175H49.7767V39.3526H39.6706V44.7607H37.2815V31.4318Z"/><path d="M58.737 42.8463C62.1057 42.8463 63.6109 40.9319 63.6109 37.9886C63.6109 35.0452 62.1057 33.1308 58.737 33.1308C55.3445 33.1308 53.8393 35.0452 53.8393 37.9886C53.8393 40.9319 55.3445 42.8463 58.737 42.8463ZM51.4502 37.9886C51.4502 34.1359 54.0543 30.9771 58.737 30.9771C63.3958 30.9771 66 34.1359 66 37.9886C66 41.8413 63.3958 45 58.737 45C54.0543 45 51.4502 41.8413 51.4502 37.9886Z"/></svg>
+    <div id="today"></div>
+  </header>
+  <div class="toprow" id="toprow"><div class="clsw"><div id="cls"><button id="chead" type="button" aria-expanded="false"><span class="clab"></span></button><div id="clist"><div id="cind"></div></div></div></div><button id="detail" type="button">검색</button><button id="heat" type="button">통계</button></div>
+  
+  <section class="card tt">
+    <div class="mbar">
+      <span class="mt">시간표</span>
+      <div class="wk">
+        <button class="mini ar" id="tprev" type="button" aria-label="시간표 이전 주"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 5l-7 7 7 7"/></svg></button>
+        <span id="tlab"></span>
+        <button class="mini ar" id="tnext" type="button" aria-label="시간표 다음 주"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>
+    <div id="ttl"></div>
+  </section>
+  
+  <section class="card ml">
+    <div class="mbar">
+      <span class="mt">급식</span>
+      <div class="wk">
+        <button class="mini ar" id="wprev" type="button" aria-label="급식 이전 주"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 5l-7 7 7 7"/></svg></button>
+        <span id="wlab"></span>
+        <button class="mini ar" id="wnext" type="button" aria-label="급식 다음 주"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>
+    <div id="meals"></div>
+  </section>
+  <div id="panel" class="card"></div>
+  <div id="note"></div>
+</div>
+
+<div id="pop" hidden>
+  <div id="popbg"></div>
+  <div id="sheet" role="dialog" aria-label="검색">
+    <div class="ch"><div class="ct" id="ct">검색</div><button class="nav x" id="px" type="button" aria-label="닫기">✕</button></div>
+    <div id="srow"><input id="sq" type="search" placeholder="이름 검색" autocomplete="off"><button id="fbtn" type="button" aria-expanded="false"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>필터</span><i id="fbadge" hidden></i></button></div>
+    <div id="sbw"><div id="sbody">
+      <div id="fwrap"><div class="fwi"><div class="fbox">
+      <div id="mseg" class="fseg">
+        <div class="seg" id="fg"></div>
+        <button class="ft" id="mbtn" data-t="m" type="button"><span class="tn">생월</span><em></em></button>
+        <div id="mpw" class="shut"><div class="fpi"><div id="mpan"></div></div></div>
+      </div>
+      <div id="ftabs"></div>
+      </div></div></div>
+      <div id="fcnt"><span id="fn"></span><button id="frs" type="button">초기화</button></div>
+      <div id="sres"></div>
+    </div><div class="sfade t"></div><div class="sfade b"></div></div>
+  </div>
+</div>
+
+<div id="cpop" hidden>
+  <div id="cbg"></div>
+  <div id="csheet" role="dialog" aria-label="크레딧">
+    <div id="cimgw"><img id="cimg" src="data:image/jpeg;base64,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" alt="크레딧 캐릭터"></div>
+    <p id="cmade">Made by 김동욱</p>
+    <div id="csub">DGD INFO</div>
+    <button class="nav x" id="cclose" type="button" aria-label="닫기">✕</button>
+  </div>
+</div>
+
+<div id="hpop" hidden>
+  <div id="hbg"></div>
+  <div id="hsheet" role="dialog" aria-label="통계">
+    <div class="ch"><div class="ct">통계</div><button class="nav x" id="hx" type="button" aria-label="닫기">✕</button></div>
+    <div class="seg" id="hseg"><button class="on" data-p="birth" type="button">생일</button><button data-p="m" type="button">생월</button><button data-p="es" type="button">출신초</button></div>
+    <div class="spane" id="p-birth">
+      <div id="hnext"></div>
+      <div id="hinfo"></div>
+      <div id="hleg"><span id="hsum"></span><span class="lg">적음 <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> 많음</span></div>
+      <div id="hbody"><div id="hgrid"></div></div>
+    </div>
+    <div class="spane" id="p-es" hidden><div class="sph" id="hes">출신초 통계가 들어갈 자리예요</div></div>
+    <div class="spane" id="p-m" hidden><div class="sph" id="hmo">생월 통계가 들어갈 자리예요</div></div>
+  </div>
+</div>
+
+<script>
+const API_KEY = '0cea1ac59ec04c328810165ed477f2b8';  // NEIS 인증키
+const GRADE = 3, CLASS_COUNT = 12, OFFICE = 'D10', SCHOOL_NAME = '대구동중학교';
+const BASE = 'https://open.neis.go.kr/hub/', WD = ['일','월','화','수','목','금','토'], ITEM = 40, PITCH = 163;
+const $ = id => document.getElementById(id);
+const isPC = () => innerWidth >= 900;
+const store = {get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+// 서버(한국 시간) 기준 시각으로 맞추는 값. 기기 시계가 틀려도 날짜가 맞게 나오도록 함
+let clockOff = 0, clockSynced = false;
+async function syncClock(){
+  try {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 3000);
+    const r = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia%2FSeoul', {signal:ctl.signal, cache:'no-store'});
+    clearTimeout(t);
+    const j = await r.json();
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(j.dateTime || '');
+    if (!m) return false;
+    // 한국 벽시계 시각을 기준으로 기기 시계와의 차이를 구함 (KST = UTC+9, 고정)
+    const serverMs = Date.UTC(+m[1], +m[2]-1, +m[3], +m[4]-9, +m[5]);
+    clockOff = serverMs - Date.now();
+    clockSynced = true;
+    return true;
+  } catch(e){ return false; }
+}
+// 오늘 날짜 (한국 시간 기준, 서버 시각 우선 / 실패 시 기기 시계)
+function today(){
+  const now = new Date(Date.now() + clockOff);
+  try { const d = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Seoul'})); if (!isNaN(d)) return d; } catch(e){}
+  return now;
+}
+const ymd = d => d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+const parse = s => new Date(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8));
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const mondayOf = d => addDays(d, -((d.getDay()+6)%7));
+const zoomNow = () => parseFloat(document.body.style.zoom) || 1;
+function setToday(){
+  const n = today();
+  $('today').textContent = String(n.getMonth()+1).padStart(2,'0')+'.'+String(n.getDate()).padStart(2,'0')+' ( '+WD[n.getDay()]+' )';
+}
+setToday();
+
+async function neis(ep, p){
+  const q = new URLSearchParams({Type:'json', pSize:1000, ...p});
+  if (API_KEY) q.set('KEY', API_KEY);
+  const j = await (await fetch(BASE+ep+'?'+q)).json();
+  const blk = j[ep];
+  if (!blk){
+    const r = j.RESULT || {};
+    if (/ERROR|INFO-300/.test(r.CODE||'')) throw new Error((r.CODE||'')+' '+(r.MESSAGE||''));
+    return [];
+  }
+  return blk[1] ? blk[1].row || [] : [];
+}
+async function schoolCode(){
+  let c = store.get('dgd_sc');
+  if (c) return c;
+  const r = await neis('schoolInfo', {ATPT_OFCDC_SC_CODE:OFFICE, SCHUL_NM:SCHOOL_NAME});
+  c = r[0] && r[0].SD_SCHUL_CODE;
+  if (!c) throw new Error('학교 코드를 찾지 못했어요');
+  store.set('dgd_sc', c);
+  return c;
+}
+// NEIS 급식 응답 -> {날짜: "메뉴\n메뉴..."}
+function parseMeals(rows){
+  const meals = {};
+  rows.forEach(r => {
+    if (meals[r.MLSV_YMD] && r.MMEAL_SC_CODE !== '2') return;
+    meals[r.MLSV_YMD] = r.DDISH_NM.replace(/\([\d.\s]*\)/g,'').split(/<br\s*\/?>/).map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean).join('\n');
+  });
+  return meals;
+}
+const FOOD = ['차조밥\n제육볶음\n미역국\n배추김치\n사과','현미밥\n닭갈비\n어묵국\n깍두기\n요구르트','잡곡밥\n돈까스\n된장국\n콩나물무침','쌀밥\n불고기\n계란국\n포기김치\n귤','보리밥\n생선구이\n콩나물국\n배추김치'];
+function demoMeals(from, to){
+  const m = {};
+  for (let d = new Date(from), i = 0; d <= to; d = addDays(d,1), i++){
+    if (d.getDay()===0 || d.getDay()===6) continue;
+    m[ymd(d)] = FOOD[(d.getDate()+d.getMonth()) % FOOD.length];
+  }
+  return m;
+}
+function demo(from){
+  const subj = ['국어','수학','영어','과학','사회','체육','음악','미술','기술가정','역사'];
+  const tt = {}, meals = {};
+  for (let i = 0; i < 35; i++){
+    const d = addDays(from, i); if (d.getDay()===0 || d.getDay()===6) continue;
+    const k = ymd(d); tt[k] = {};
+    for (let p = 1; p <= 7; p++) tt[k][p] = subj[(i*3+p) % subj.length];
+    if (i % 2 === 0) tt[k][7] = tt[k][6];
+    meals[k] = FOOD[i % FOOD.length];
+  }
+  return {tt, meals};
+}
+async function fetchAll(cls, withMeals){
+  const now = today(), mon = mondayOf(now), from = ymd(mon), to = ymd(addDays(mon,35));
+  const y = now.getFullYear(), m = now.getMonth()+1;
+  const AY = m >= 3 ? y : y-1, SEM = (m >= 3 && m <= 8) ? 1 : 2;
+  const code = await schoolCode();
+  const base = {ATPT_OFCDC_SC_CODE:OFFICE, SD_SCHUL_CODE:code};
+  const [tr, mr] = await Promise.all([
+    neis('misTimetable', {...base, AY, SEM, GRADE, CLASS_NM:cls, TI_FROM_YMD:from, TI_TO_YMD:to}),
+    withMeals ? neis('mealServiceDietInfo', {...base, MLSV_FROM_YMD:from, MLSV_TO_YMD:to}) : Promise.resolve(null)
+  ]);
+  const tt = {};
+  tr.forEach(r => { (tt[r.ALL_TI_YMD] = tt[r.ALL_TI_YMD] || {})[r.PERIO] = r.ITRT_CNTNT; });
+  return {tt, meals: mr ? parseMeals(mr) : null};
+}
+
+const short = s => String(s).replace(/생활\s*중국어/g,'중국어').replace(/기술\s*[·ㆍ,]?\s*가정/g,'기가').replace(/동아리(\s*활동)?/g,'스포츠');
+let state = {tt:{}, meals:{}, demo:false, msg:''}, cls = +store.get('dgd_cls') || 1;
+
+let mlMon = null, mlOpen = '', ttMon = null, ttOpen = '', weekTok = 0, weekLoading = false;
+function pickTarget(){
+  const now = today(), t = ymd(now);
+  const weekend = now.getDay() === 0 || now.getDay() === 6;
+  const base = weekend ? ymd(addDays(mondayOf(now), 7)) : t;   // 주말이면 다음 주 월요일부터 보여줌
+  const days = Object.keys(state.tt).sort();
+  const pool = days.length ? days : Object.keys(state.meals).sort();
+  if (pool.includes(base)) return base;         // 평일이면 오늘, 주말이면 다음 주 월요일
+  const nx = pool.find(d => d > base);          // 등교하지 않는 날이면 다음 등교일
+  if (nx) return nx;
+  let d = parse(base); while (d.getDay() === 0 || d.getDay() === 6) d = addDays(d, 1);
+  return ymd(d);
+}
+function render(redrawMeals){
+  const target = pickTarget();
+  if (redrawMeals || !mlMon){ mlMon = ttMon = mondayOf(parse(target)); mlOpen = ttOpen = ''; }
+  renderMeals(); renderTT(); ensureTT(ttMon);
+  $('note').textContent = state.msg;
+}
+// 받아온 급식 중 가장 늦은 날짜 — 그보다 뒤의 평일은 '아직 못 받는 것'으로 봄
+function lastMealKey(){
+  let m = '';
+  const add = o => { for (const k in o) if (o[k] && k > m) m = k; };
+  add(state.meals);
+  for (const k in monthCache) add(monthCache[k].data);
+  return m;
+}
+const notYet = k => k > ymd(today()) && k > lastMealKey();
+const fmtMD = x => String(x.getMonth()+1).padStart(2,'0')+'.'+String(x.getDate()).padStart(2,'0');
+let mlSel = '';
+const mealMsg = k => weekLoading ? '불러오는 중…' : (notYet(k) ? '아직 받을 수 없어요' : '급식 없음');
+function mealDet(k){
+  const txt = state.meals[k], items = txt ? txt.split('\n') : [];
+  return '<div class="mdd">'+fmtMD(parse(k))+'</div>'
+    + (txt ? '<ul'+(items.length > 3 ? ' class="two"' : '')+'>'+items.map(s => '<li>'+s+'</li>').join('')+'</ul>' : '<div class="mnone">'+mealMsg(k)+'</div>');
+}
+function renderMeals(){
+  const target = pickTarget();
+  const keys = [0,1,2,3,4].map(i => ymd(addDays(mlMon, i)));
+  if (!keys.includes(mlOpen)) mlOpen = '';
+  mlSel = mlOpen || (keys.includes(target) ? target : (keys.find(k => state.meals[k]) || keys[0]));
+  const pills = keys.map(k => '<button class="mp'+(k === mlSel ? ' on' : '')+(k === target ? ' today' : '')+(state.meals[k] ? '' : ' none')+'" data-k="'+k+'" type="button">'+fmtMD(parse(k))+'</button>').join('');
+  smoothSet($('meals'), '<div class="mpills">'+pills+'</div><div class="mdet'+(mlSel === target ? ' hot' : '')+'" id="mdet">'+mealDet(mlSel)+'</div>');
+  $('wlab').textContent = fmtMD(mlMon)+' - '+fmtMD(addDays(mlMon, 4));
+}
+// 다른 주로 이동하면 필요한 달의 급식을 불러와 합침
+async function ensureWeek(mon){
+  const tok = ++weekTok;
+  const months = [...new Set([mon, addDays(mon, 4)].map(d => d.getFullYear()+'-'+d.getMonth()))];
+  if (months.some(m => !monthCache[m])){ weekLoading = true; renderMeals(); }
+  const rs = await Promise.all(months.map(m => monthMeals(+m.split('-')[0], +m.split('-')[1])));
+  if (tok !== weekTok) return;
+  weekLoading = false;
+  rs.forEach(r => { if (r.demo && !state.demo) return; Object.keys(r.data).forEach(k => { if (!state.meals[k]) state.meals[k] = r.data[k]; }); });
+  renderMeals();
+}
+// 내용이 바뀔 때 카드 높이를 부드럽게 늘이고 줄이며, 행들이 차례로 떠오르듯 나타나게 함
+const EASE = 'cubic-bezier(.32,.72,0,1)';
+function smoothSet(el, html){
+  el.classList.remove('swap');
+  if (el.innerHTML === html) return;
+  if (!el.children.length || !el.animate){ el.innerHTML = html; return; }
+  const h0 = el.offsetHeight;
+  el.getAnimations({subtree:true}).forEach(a => a.cancel());
+  el.style.transition = 'none'; el.style.height = '';
+  el.innerHTML = html;
+  const h1 = el.offsetHeight;
+  el.style.overflow = 'hidden'; el.style.height = h0 + 'px';
+  el.offsetHeight;                                   // 시작 높이 확정
+  el.style.transition = 'height .3s ' + EASE; el.style.height = h1 + 'px';
+  const done = () => { el.style.transition = el.style.height = el.style.overflow = ''; };
+  clearTimeout(el._smt); el._smt = setTimeout(done, 330);
+  [...el.children].forEach((r, i) => r.animate(
+    [{opacity:0, transform:'translateY(6px) scale(.985)', filter:'blur(4px)'}, {opacity:1, transform:'none', filter:'blur(0)'}],
+    {duration:300, delay:i*22, easing:EASE, fill:'backwards'}
+  ));
+}
+// 시간표: 급식과 따로 움직이는 주·펼침 상태
+let ttLoading = false;
+const ttFetched = {};
+function renderTT(){
+  const target = pickTarget();
+  let h = '<div class="tcols">';
+  for (let i = 0; i < 5; i++){
+    const d = addDays(ttMon, i), k = ymd(d), day = state.tt[k] || {}, groups = [];
+    for (let p = 1; p <= 7; p++){
+      const sj = day[p] && short(day[p]); if (!sj) continue;
+      const g = groups[groups.length-1];
+      if (g && g.s === sj && g.e === p-1) g.e = p; else groups.push({s:sj, b:p, e:p});
+    }
+    h += '<div class="tcol'+(k === target ? ' hot' : '')+'" data-k="'+k+'"><div class="td">'+fmtMD(d)+'</div><div class="tb">'
+      + (groups.length ? groups.map(g => '<div class="tg" style="grid-row:'+g.b+'/'+(g.e+1)+'">'+g.s+'</div>').join('') : '<div class="tn0">'+(ttLoading ? '…' : '없음')+'</div>')
+      + '</div></div>';
+  }
+  smoothSet($('ttl'), h+'</div>');
+  $('tlab').textContent = fmtMD(ttMon)+' - '+fmtMD(addDays(ttMon, 4));
+}
+// 다른 주의 시간표가 아직 없으면 NEIS에서 그 주만 불러와 합침
+async function ensureTT(mon){
+  const key = cls+'|'+ymd(mon);
+  if (!API_KEY || state.demo || ttFetched[key]) return;
+  if ([0,1,2,3,4].some(i => state.tt[ymd(addDays(mon, i))])) return;
+  ttFetched[key] = 1; ttLoading = true; renderTT();
+  const c0 = cls;
+  try {
+    const code = await schoolCode(), y = mon.getFullYear(), m = mon.getMonth()+1;
+    const rows = await neis('misTimetable', {ATPT_OFCDC_SC_CODE:OFFICE, SD_SCHUL_CODE:code, AY:(m >= 3 ? y : y-1), SEM:((m >= 3 && m <= 8) ? 1 : 2), GRADE, CLASS_NM:c0, TI_FROM_YMD:ymd(mon), TI_TO_YMD:ymd(addDays(mon, 4))});
+    if (c0 !== cls) return;
+    rows.forEach(r => { const o = state.tt[r.ALL_TI_YMD] = state.tt[r.ALL_TI_YMD] || {}; if (!o[r.PERIO]) o[r.PERIO] = r.ITRT_CNTNT; });
+  } catch(e){ delete ttFetched[key]; }
+  ttLoading = false;
+  if (c0 === cls) renderTT();
+}
+let mealTok = 0;
+// 날짜를 고르면: 기존 내용이 블러로 흐려지며 사라지고 → 새 내용이 블러에서 선명해지며 나타남 (카드 배경은 그대로 부드럽게 색만 바뀜)
+async function selectMeal(k){
+  if (k === mlSel) return;
+  mlOpen = mlSel = k;
+  const tok = ++mealTok;
+  document.querySelectorAll('#meals .mp').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  const d = $('mdet'); if (!d) return;
+  d.classList.toggle('hot', k === pickTarget());
+  if (!d.animate){ d.innerHTML = mealDet(k); return; }
+  const out = [...d.children].map(c => c.animate([{opacity:1, filter:'blur(0)', transform:'none'}, {opacity:0, filter:'blur(8px)', transform:'translateY(-4px)'}], {duration:140, easing:'ease-in', fill:'forwards'}).finished.catch(() => {}));
+  await Promise.all(out);
+  if (tok !== mealTok) return;                       // 그 사이 다른 날짜를 눌렀으면 마지막 것만 그림
+  d.getAnimations({subtree:true}).forEach(a => a.cancel());
+  d.innerHTML = mealDet(k);
+  [...d.children].forEach((c,i) => c.animate([{opacity:0, filter:'blur(8px)', transform:'translateY(8px)'}, {opacity:1, filter:'blur(0)', transform:'none'}], {duration:340, delay:i*45, easing:EASE, fill:'backwards'}));
+}
+async function load(withMeals){
+  for (const k in ttFetched) delete ttFetched[k];
+  const from = mondayOf(today()), wasDemo = state.demo;
+  let redraw = withMeals;
+  try {
+    if (!API_KEY) throw new Error('nokey');
+    const r = await fetchAll(cls, withMeals || wasDemo);
+    state.tt = r.tt; if (r.meals){ state.meals = r.meals; redraw = true; }
+    state.demo = false; state.msg = '';
+    if (!Object.keys(r.tt).length) state.msg = Object.keys(state.meals).length ? '이 반 시간표가 아직 NEIS에 없어요' : '받아온 데이터가 없어요';
+  } catch(e){
+    const d = demo(from); state.tt = d.tt;
+    if (withMeals || wasDemo){ state.meals = d.meals; redraw = true; }
+    state.demo = true;
+    state.msg = e.message === 'nokey' ? '샘플 데이터예요 · API_KEY를 넣으면 실제 정보가 나와요' : '불러오지 못해서 샘플 데이터를 보여줘요 ('+e.message+')';
+  }
+  render(redraw);
+}
+
+// 반 선택: 누르면 펼쳐지는 목록. 고르면 하이라이트가 미끄러져 가고, 접힌 뒤 그 반 시간표를 불러옴
+const clsEl = $('cls'), topRow = $('toprow'), cHead = $('chead'), cList = $('clist'), cInd = $('cind'), cText = cHead.querySelector('.clab');
+cList.insertAdjacentHTML('afterbegin', Array.from({length:CLASS_COUNT}, (_,i) => '<button class="c" type="button" data-n="'+(i+1)+'">'+(i+1)+'반</button>').join(''));
+const cItems = [...cList.querySelectorAll('.c')];
+let cOpen = false, cPending = false;
+// 펼친 높이: 헤더 + 4줄(3열) + 간격 + 아래 여백
+const listH = () => isPC() ? (48 + 8 + 4*40 + 3*8 + 12) : (40 + 6 + 4*36 + 3*6 + 10);
+function placeCInd(anim, n = cls){
+  const on = cItems[n-1]; if (!on) return;
+  cItems.forEach(c => c.classList.toggle('on', c === on));
+  if (!anim) cInd.style.transition = 'none';
+  cInd.style.left = on.offsetLeft+'px'; cInd.style.top = on.offsetTop+'px';
+  cInd.style.width = on.offsetWidth+'px'; cInd.style.height = on.offsetHeight+'px';
+  if (!anim){ void cInd.offsetWidth; cInd.style.transition = ''; }
+}
+function setCOpen(v){
+  cOpen = v; topRow.classList.toggle('act', v);
+  cHead.setAttribute('aria-expanded', v);
+  if (v){ clsEl.style.setProperty('--ah', listH()+'px'); cInd.style.opacity = '0'; }
+}
+clsEl.addEventListener('transitionend', e => {
+  if (e.target !== clsEl || (e.propertyName !== 'width' && e.propertyName !== 'height')) return;
+  if (cOpen){ placeCInd(false); cInd.style.opacity = ''; }
+});
+function setCText(n){
+  cText.classList.add('out');
+  setTimeout(() => { cText.textContent = n+'반'; cText.classList.remove('out'); }, 180);
+}
+cHead.addEventListener('click', () => { if (!cPending) setCOpen(!cOpen); });
+cList.addEventListener('click', e => {
+  const b = e.target.closest('.c'); if (!b || cPending) return;
+  const n = +b.dataset.n;
+  if (n === cls){ setCOpen(false); return; }
+  cPending = true; placeCInd(true, n);                       // 하이라이트가 고른 칸까지 미끄러짐
+  setTimeout(() => {
+    cls = n; store.set('dgd_cls', n);
+    setCOpen(false); setCText(n); cPending = false;
+    $('ttl').classList.add('swap'); load(false);
+  }, 340);
+});
+// 목록 바깥을 누르면 접힘
+document.addEventListener('pointerdown', e => { if (cOpen && !clsEl.contains(e.target)) setCOpen(false); });
+cText.textContent = cls+'반';
+$('meals').addEventListener('click', e => { const b = e.target.closest('.mp'); if (b) selectMeal(b.dataset.k); });
+// 주차를 넘길 때: 기존 행이 블러로 흐려지며 사라진 뒤, 새 주가 블러에서 선명해지며 나타남
+const blurOut = el => (!el.animate || !el.children.length) ? Promise.resolve() : Promise.all([...el.children].map((r,i) => r.animate(
+  [{opacity:1, filter:'blur(0)', transform:'none'}, {opacity:0, filter:'blur(4px)', transform:'translateY(-3px) scale(.98)'}],
+  {duration:110, delay:i*8, easing:'ease-in', fill:'forwards'}).finished.catch(() => {})));
+const unBlur = el => el.getAnimations({subtree:true}).forEach(a => a.cancel());
+let mlGo = 0, ttGo = 0;
+async function goMealWeek(n){ const t = ++mlGo; mlMon = addDays(mlMon, 7*n); mlOpen = ''; await blurOut($('meals')); if (t !== mlGo) return; unBlur($('meals')); renderMeals(); ensureWeek(mlMon); }
+async function goTTWeek(n){ const t = ++ttGo; ttMon = addDays(ttMon, 7*n); ttOpen = ''; await blurOut($('ttl')); if (t !== ttGo) return; unBlur($('ttl')); renderTT(); ensureTT(ttMon); }
+$('wprev').addEventListener('click', () => goMealWeek(-1));
+$('wnext').addEventListener('click', () => goMealWeek(1));
+$('tprev').addEventListener('click', () => goTTWeek(-1));
+$('tnext').addEventListener('click', () => goTTWeek(1));
+
+const monthCache = {};
+async function monthMeals(y, m0){
+  const key = y+'-'+m0;
+  if (monthCache[key]) return monthCache[key];
+  const first = new Date(y, m0, 1), last = new Date(y, m0+1, 0);
+  try {
+    if (!API_KEY) throw new Error('nokey');
+    const code = await schoolCode();
+    const rows = await neis('mealServiceDietInfo', {ATPT_OFCDC_SC_CODE:OFFICE, SD_SCHUL_CODE:code, MLSV_FROM_YMD:ymd(first), MLSV_TO_YMD:ymd(last)});
+    return monthCache[key] = {data:parseMeals(rows), demo:false};
+  } catch(e){
+    return {data:demoMeals(first, last), demo:true};
+  }
+}
+const STU_RAW = "강성윤,남자,20110504,범어초,3,11,1,1,1,1,6,1\n구재인,여자,20111017,동천초,4,1,1,2,9,1,1,2\n구지안,여자,20111220,동도초,2,3,1,3,5,1,11,2\n김건우,남자,20110415,삼덕초,2,14,1,4,10,4,3,3\n김규민,남자,20110915,동성초,3,2,1,5,12,2,3,4\n김수현,여자,20110629,동천초,7,2,1,6,10,7,6,9\n김시온,여자,20110603,동도초,1,5,1,7,6,6,3,7\n김예준,남자,20111119,범어초,4,15,1,8,7,4,6,10\n류경민,여자,20110221,동도초,5,5,1,9,6,11,7,12\n류승현,남자,20110408,동성초,7,28,1,10,1,14,8,12\n류혜인,여자,20111106,동천초,8,5,1,11,8,11,5,10\n박재현,남자,20110913,동도초,1,19,1,12,6,15,9,11\n배민재,남자,20110721,동일초,3,21,1,13,9,8,5,14\n배서진,남자,20110817,황금초,2,12,1,14,5,13,11,14\n배세준,남자,20110817,황금초,2,13,1,15,5,14,11,15\n석아림,여자,20111025,동도초,2,7,1,16,6,18,7,16\n성민주,여자,20110419,동도초,5,9,1,17,2,16,4,15\n오윤주,여자,20110322,동도초,7,4,1,18,3,18,12,16\n육선하,여자,20110531,범어초,4,7,1,19,8,18,10,18\n이대훈,남자,20111219,동도초,8,24,1,20,3,22,10,20\n이동윤,남자,20110712,동일초,1,24,1,21,12,18,1,19\n이예린,여자,20110411,동천초,4,13,1,22,7,19,8,23\n이예빈,여자,20110822,영신초,3,9,1,23,4,23,8,24\n장승윤,남자,20110829,동천초,4,27,1,24,4,28,11,24\n장예지,여자,20111022,동산초,1,24,1,25,5,22,9,26\n장은성,남자,20111105,동성초,5,13,1,26,2,26,7,24\n장인영,여자,20110506,동일초,4,13,1,27,8,24,6,27\n최시후,남자,20110927,동천초,4,29,1,28,2,31,1,28\n최예린,여자,20110321,동일초,4,15,1,29,10,31,12,29\n최예준,남자,20111005,동도초,7,24,1,30,12,27,1,29\n최유나,여자,20110801,동도초,6,12,1,31,9,27,1,30\n강유찬,남자,20111007,동성초,5,1,2,1,1,2,8,1\n구승아,여자,20111006,동천초,6,1,2,2,8,1,6,2\n권경현,여자,20110721,동도초,2,4,2,3,1,3,11,3\n김경윤,남자,20110712,동성초,6,1,2,4,8,3,10,4\n김규민,남자,20110328,동도초,5,14,2,5,8,4,1,5\n김균태,남자,20111102,영신초,2,17,2,6,9,4,3,5\n김수정,여자,20110624,동도초,5,3,2,7,10,6,7,8\n김아린,여자,20110215,동도초,1,6,2,9,11,8,4,8\n김효주,여자,20110905,동천초,1,3,2,11,4,14,1,13\n노유성,남자,20110415,삼덕초,3,18,2,12,4,15,5,9\n문소이,여자,20110311,동도초,5,6,2,13,2,14,5,11\n문시온,남자,20110704,동성초,7,6,2,14,6,12,10,10\n배주원,남자,20110106,동성초,7,7,2,15,2,15,8,18\n서은율,여자,20111105,동천초,2,8,2,16,6,16,9,13\n손다은,여자,20110722,동일초,3,6,2,17,7,13,9,14\n오연서,여자,20110815,동천초,8,11,2,18,10,20,4,17\n윤다연,여자,20110325,동천초,8,12,2,19,7,15,5,17\n윤영인,남자,20110310,동성초,4,7,2,20,10,21,11,20\n이동현,남자,20110224,동성초,5,11,2,21,4,21,5,19\n이연우,여자,20110411,범어초,5,6,2,22,7,18,5,20\n이예서,여자,20110429,동산초,3,21,2,23,7,20,12,20\n임재서,남자,20110717,삼덕초,3,24,2,24,11,25,1,23\n장연재,여자,20111001,동도초,9,9,2,25,1,23,4,23\n장혁,남자,20110207,동도초,6,25,2,26,8,25,5,22\n전지우,여자,20110814,동도초,6,10,2,27,3,27,9,27\n최성민,남자,20110920,동성초,1,10,2,28,10,30,12,27\n최수정,여자,20111221,남산초,6,19,2,29,12,26,11,29\n최온유,남자,20110414,동도초,10,23,2,30,3,30,3,27\n최호연,여자,20110420,영신초,4,13,2,31,7,29,12,30\n강재윤,남자,20110504,범어초,3,12,3,1,6,1,10,1\n권나윤,여자,20110912,동천초,7,1,3,3,11,4,5,3\n김대윤,남자,20111125,동천초,3,17,3,4,8,5,5,5\n김민성,남자,20110421,동성초,3,5,3,5,12,4,10,6\n김세은,여자,20110428,동도초,3,2,3,6,12,5,8,7\n김시엽,남자,20110616,동천초,1,19,3,7,5,7,11,8\n김아영,여자,20111208,동일초,1,1,3,8,6,8,9,5\n김온유,남자,20111202,대부초,2,1,3,9,8,6,1,10\n김현서,여자,20110630,동도초,5,4,3,10,1,13,11,11\n노우영,남자,20110219,동인초,3,6,3,11,6,10,10,9\n민유선,여자,20110513,동일초,3,4,3,12,6,13,9,10\n박건,남자,20110503,동도초,9,20,3,13,12,10,3,11\n박효준,남자,20110701,동성초,5,7,3,14,12,15,3,14\n배문규,남자,20110626,가창초,1,8,3,15,10,12,6,15\n서윤아,여자,20110608,동천초,5,7,3,16,9,12,12,14\n손예루,여자,20110415,동도초,10,5,3,17,5,16,3,15\n오다현,여자,20110428,동도초,2,8,3,18,3,17,11,19\n유승민,남자,20110712,범어초,1,15,3,19,11,19,12,17\n이서영,여자,20110528,동도초,5,11,3,20,12,19,10,21\n이세민,남자,20110315,동도초,6,23,3,21,11,21,11,21\n이시은,여자,20110722,동도초,4,9,3,22,9,19,11,22\n이예슬,여자,20110429,동산초,3,22,3,23,4,24,8,25\n임건하,남자,20110223,대구초,2,5,3,24,4,25,7,23\n장연재,여자,20110506,동일초,3,12,3,25,9,23,9,25\n전시원,남자,20110215,동천초,7,28,3,26,1,24,1,25\n전혜연,여자,20110527,동도초,9,10,3,27,5,23,5,23\n최수민,여자,20110412,대부초,3,21,3,29,7,28,12,28\n최우영,남자,20110516,동성초,1,11,3,30,11,29,4,28\n표채원,여자,20110303,동천초,9,15,3,31,9,29,7,29\n강지성,남자,20110722,동성초,3,1,4,1,11,1,7,2\n고예서,여자,20110902,동천초,3,2,4,2,6,2,4,1\n김건우,남자,20110814,동천초,4,18,4,4,3,3,2,4\n김대현,남자,20110801,동산초,3,1,4,5,3,5,9,3\n김민형,여자,20110623,동천초,6,3,4,6,11,7,9,4\n김승원,남자,20110223,동도초,8,17,4,7,12,6,11,7\n김아중,여자,20111011,동원초,1,18,4,8,10,8,4,9\n김우주,남자,20110201,동일초,3,19,4,9,1,9,1,11\n김하은,여자,20110604,동천초,5,4,4,10,2,12,4,11\n남윤후,남자,20110418,효성초,3,3,4,11,5,11,7,11\n박건민,남자,20110419,동천초,4,19,4,12,7,9,7,13\n박봄,여자,20110614,동도초,4,27,4,13,11,12,12,8\n박지훈,남자,20110712,동성초,6,4,4,14,11,15,12,12\n배찬윤,남자,20110312,동일초,2,21,4,15,5,15,12,13\n서서형,여자,20110425,동성초,7,18,4,16,11,16,10,14\n손예별,여자,20110701,동일초,2,6,4,17,2,17,2,14\n여현진,여자,20110119,동천초,6,8,4,18,9,14,1,18\n원대연,남자,20110311,동도초,5,28,4,19,4,20,3,18\n윤슬아,여자,20110503,동도초,7,5,4,20,7,16,3,20\n이민준,남자,20110129,동천초,1,26,4,21,10,24,9,19\n이승미,여자,20110916,범어초,6,8,4,22,3,24,6,24\n이지민,여자,20110408,동도초,8,11,4,23,6,24,4,22\n이희창,남자,20110223,황금초,1,18,4,24,12,23,12,23\n장연아,여자,20111201,동도초,6,9,4,25,9,22,3,24\n전재영,남자,20110101,황금초,2,19,4,26,1,25,8,27\n정나율,여자,20111025,동일초,2,12,4,27,2,27,1,26\n최규빈,남자,20110615,삼덕초,1,24,4,28,11,28,6,29\n최다은,여자,20110813,동일초,3,16,4,29,2,30,11,28\n한승연,여자,20111217,동산초,3,24,4,30,1,30,5,29\n허준민,남자,20111105,동일초,1,27,4,31,9,30,3,31\n고민서,여자,20110912,동도초,1,2,5,1,2,2,9,1\n고한준,남자,20110722,동천초,4,16,5,2,7,2,5,2\n권도연,여자,20110114,범어초,3,2,5,3,6,3,10,2\n김도겸,남자,20111031,범어초,4,11,5,4,5,5,3,6\n김리원,여자,20110615,학남초,4,2,5,5,4,8,7,6\n김상민,남자,20110430,동성초,5,4,5,6,2,7,8,6\n김시현,남자,20111015,동천초,3,18,5,7,6,7,4,7\n김정관,남자,20110217,황금초,5,8,5,9,5,8,5,8\n김하윤,여자,20110407,동일초,1,5,5,10,12,9,10,8\n남규원,남자,20110908,영신초,3,21,5,11,6,9,8,11\n박경담,남자,20110117,동일초,4,21,5,12,10,9,3,12\n박성하,여자,20111018,동성초,3,18,5,13,11,13,1,14\n박준환,남자,20110524,동성초,4,3,5,14,11,14,5,13\n변신우,남자,20111222,계성초,3,15,5,15,10,14,2,13\n사공예서,여자,20110811,동천초,1,6,5,16,10,15,1,15\n손예현,여자,20110925,동산초,3,18,5,17,6,19,7,17\n여소민,여자,20110131,동천초,8,10,5,18,5,18,9,17\n옥준명,남자,20110517,동성초,5,10,5,19,3,19,4,18\n윤채영,여자,20110913,동도초,5,10,5,20,10,22,6,21\n이수연,여자,20110102,영신초,2,8,5,22,12,21,6,23\n이지민,여자,20111217,동도초,1,12,5,23,2,24,1,20\n이형진,남자,20110110,동도초,5,23,5,24,8,22,8,26\n장서영,여자,20111030,동일초,4,12,5,25,9,21,3,23\n정민채,여자,20111011,동일초,3,14,5,26,1,26,5,24\n정승빈,남자,20110806,동성초,7,12,5,27,8,26,10,28\n채시영,여자,20110720,계성초,3,24,5,28,4,30,9,30\n최준영,남자,20110208,동일초,3,26,5,30,9,28,2,27\n한정민,여자,20111207,동도초,9,12,5,31,5,29,3,29\n강하연,여자,20110422,동천초,2,1,6,1,11,2,5,1\n고황빈,남자,20110426,안길초,4,1,6,2,4,2,3,2\n권유빈,여자,20111123,동도초,8,2,6,3,1,4,11,4\n김강준,남자,20110909,동도초,1,15,6,4,3,2,6,5\n김도영,남자,20110817,삼덕초,1,14,6,5,2,4,7,4\n김리원,여자,20110219,범어초,1,1,6,6,1,8,6,8\n김민혁,남자,20110902,동천초,8,19,6,7,11,6,1,8\n김예린,여자,20110718,동일초,1,2,6,8,11,10,1,9\n김정연,남자,20110901,황금초,5,9,6,9,1,11,10,7\n김태희,여자,20110528,동일초,1,4,6,10,4,12,12,4\n나민재,남자,20110811,삼덕초,3,17,6,11,2,13,3,10\n박규현,남자,20110527,영신초,4,17,6,12,3,13,10,11\n박세영,여자,20111222,영신초,3,7,6,13,10,11,8,14\n박준혁,남자,20110513,동천초,2,21,6,14,12,12,4,14\n백지헌,여자,20110915,동도초,3,7,6,15,10,13,11,16\n서민혁,남자,20110413,삼덕초,2,22,6,16,9,11,9,12\n손주하,여자,20110323,동천초,4,10,6,17,11,17,6,16\n여세인,여자,20111025,동천초,2,9,6,18,8,17,10,17\n오은태,남자,20110309,동성초,7,9,6,19,5,19,6,20\n은도윤,여자,20110515,동도초,3,9,6,20,12,17,2,17\n이수빈,여자,20110729,동일초,1,10,6,21,5,21,2,22\n이시윤,남자,20111004,삼덕초,3,22,6,22,2,22,2,23\n이지우,여자,20110426,동천초,9,6,6,23,7,22,10,24\n이현재,남자,20110805,동도초,3,24,6,24,9,20,10,26\n장서연,여자,20110511,동천초,7,12,6,25,6,25,2,25\n정수빈,여자,20110307,동도초,10,10,6,26,5,24,4,24\n정승우,남자,20110107,팔공초,1,6,6,27,1,27,12,24\n주하나,여자,20111219,동일초,3,15,6,28,2,29,5,27\n최우현,남자,20110805,남도초,1,22,6,29,4,31,9,31\n최준현,남자,20110805,남도초,1,23,6,30,5,28,3,28\n한효림,여자,20111217,동천초,5,15,6,31,12,28,3,30\n강지수,여자,20110901,동천초,3,1,7,1,2,1,11,1\n곽시후,남자,20111012,동일초,4,16,7,2,10,2,12,1\n권지아,여자,20111104,동도초,9,1,7,3,1,6,4,3\n길동현,남자,20111127,범어초,5,24,7,4,4,5,11,5\n김도현,남자,20111024,동천초,1,17,7,5,1,7,2,7\n김라희,여자,20110719,동산초,2,15,7,6,5,6,6,7\n김민찬,남자,20110107,안길초,1,2,7,7,3,9,4,6\n김예은,여자,20111212,동성초,4,17,7,8,12,7,7,9\n김정우,남자,20110413,동성초,3,6,7,9,7,6,9,7\n김채민,여자,20110525,효성초,2,19,7,10,2,10,2,8\n김현후,남자,20110509,황금초,5,11,7,11,8,9,7,10\n류경민,남자,20110429,수성초,3,5,7,12,7,8,4,12\n박소윤,여자,20110913,동도초,4,5,7,14,8,13,7,14\n백승아,여자,20111119,동도초,1,9,7,15,7,12,2,12\n서민혁,남자,20111007,동천초,9,31,7,16,1,17,11,17\n송다원,여자,20110102,대부초,3,18,7,17,10,16,10,15\n오대건,남자,20110210,범어초,4,16,7,19,2,21,5,16\n이가빈,여자,20110313,동천초,6,9,7,20,5,20,6,22\n이세라,여자,20111201,운암초,1,21,7,21,9,17,2,20\n이승찬,남자,20110525,대부초,3,8,7,22,1,20,7,21\n이지유,여자,20110630,동천초,5,31,7,23,11,22,2,24\n이태린,남자,20110429,대봉초,2,17,7,24,8,20,12,21\n장서연,여자,20110426,동천초,6,14,7,25,4,27,3,22\n정승준,남자,20110709,동일초,3,24,7,26,3,28,2,26\n정예슬,여자,20110904,동천초,2,13,7,27,7,25,8,28\n조혜령,여자,20111209,동천초,7,13,7,28,12,25,3,26\n진준범,남자,20111130,동인초,2,19,7,29,10,29,1,27\n최민서,남자,20110513,수성초,5,12,7,30,5,27,6,30\n허예윤,여자,20111107,동천초,8,16,7,31,12,29,2,28\n강민지,여자,20110923,동도초,2,2,8,1,7,1,7,1\n곽준우,남자,20110809,동일초,1,16,8,2,11,3,8,2\n권지우,여자,20111104,동도초,1,3,8,3,5,3,6,4\n권현준,남자,20110205,동성초,2,1,8,4,7,3,5,4\n김동욱,남자,20110101,동도초,1,16,8,5,12,3,6,6\n김라은,여자,20110530,동원초,1,17,8,6,11,5,7,5\n김민재,남자,20110301,영신초,1,15,8,7,4,10,7,7\n김유진,여자,20111012,동도초,6,4,8,8,1,10,4,10\n김지승,남자,20110207,동성초,7,27,8,9,2,8,11,9\n김지율,여자,20111110,고산초,3,19,8,10,5,10,8,9\n김현욱,남자,20110310,동도초,4,18,8,11,4,13,12,5\n박도훈,남자,20110320,동천초,4,20,8,12,10,10,12,7\n박이준,남자,20111106,동천초,1,22,8,14,9,7,2,10\n배지윤,여자,20110216,동일초,4,5,8,15,8,14,7,15\n송주연,여자,20110721,동일초,4,7,8,16,3,16,6,17\n신명기,남자,20110911,삼덕초,3,19,8,17,5,17,7,18\n양우영,남자,20110426,삼덕초,1,19,8,18,6,21,6,19\n양현비,여자,20110316,동일초,4,8,8,19,4,19,10,16\n이가연,여자,20111007,삼육초,1,20,8,20,3,20,5,18\n이서현,여자,20111120,대구초,3,19,8,21,3,23,10,22\n이승현,남자,20110105,동도초,10,20,8,22,9,18,9,20\n이지현,여자,20110214,영신초,2,11,8,23,8,19,5,21\n이지호,남자,20110624,동천초,6,25,8,24,7,23,9,23\n장보겸,여자,20110505,동산초,1,23,8,25,8,23,1,24\n정승준,남자,20110726,동일초,3,28,8,26,7,24,9,28\n정유빈,여자,20110828,수성초,2,21,8,27,4,29,4,25\n조수민,여자,20111022,동도초,7,10,8,28,6,29,11,26\n진승호,남자,20110810,동산초,3,10,8,29,9,26,4,27\n하승훈,남자,20111026,삼덕초,3,25,8,30,11,30,5,28\n현가민,여자,20110219,동천초,6,16,8,31,1,31,2,29\n강다윤,여자,20110520,동도초,2,1,9,1,3,1,3,1\n구량우,남자,20110413,동성초,1,1,9,2,10,3,1,1\n권지윤,여자,20110706,동도초,8,3,9,3,5,4,4,4\n권태훈,남자,20110317,동도초,3,13,9,4,4,3,1,4\n김동욱,남자,20110822,동성초,2,2,9,5,10,5,5,6\n김동희,여자,20111008,동도초,6,2,9,6,3,7,8,5\n김민재,남자,20110201,동일초,1,19,9,7,2,6,1,7\n김지유,여자,20111027,계성초,3,12,9,9,5,9,3,8\n김지황,남자,20111110,고산초,1,2,9,10,7,7,11,10\n김하람,남자,20111012,삼덕초,3,16,9,11,3,12,8,10\n박정원,여자,20110917,황금초,2,23,9,13,7,11,5,12\n배주현,여자,20110530,동도초,3,5,9,14,9,10,2,11\n손동윤,남자,20110625,영신초,3,24,9,15,12,16,12,15\n신예인,여자,20110704,동도초,4,8,9,16,4,18,8,19\n양성현,남자,20110429,대부초,3,6,9,17,7,14,3,17\n양정빈,여자,20111103,동성초,3,19,9,18,8,16,2,16\n이가영,여자,20120201,동성초,5,21,9,19,9,16,9,18\n이서현,여자,20110705,동천초,6,10,9,20,12,20,8,22\n이승윤,남자,20110615,동도초,7,20,9,21,7,17,6,25\n이준화,남자,20110603,동도초,1,24,9,22,3,25,4,21\n이채연,여자,20110201,동도초,7,7,9,23,1,21,3,21\n장다연,여자,20110526,월촌초,1,14,9,24,2,25,10,27\n정윤서,여자,20111003,동천초,2,14,9,25,8,27,4,26\n정하준,남자,20110223,동천초,8,28,9,26,9,25,8,29\n조서희,여자,20111107,동일초,1,14,9,27,7,26,10,29\n지승현,남자,20110825,황금초,3,18,9,28,10,28,11,27\n한지혁,남자,20110831,범어초,5,22,9,29,7,30,10,31\n홍서원,여자,20110928,동천초,2,16,9,30,9,31,12,31\n박은율,남자,20110926,동천초,1,21,9,31,8,31,4,13\n권은준,남자,20110726,계성초,1,3,10,2,1,5,9,2\n기라연,여자,20110531,범어초,6,2,10,3,4,4,8,4\n김경돈,남자,20110201,동천초,5,19,10,4,12,1,10,3\n김도영,여자,20111110,동도초,8,4,10,5,3,6,2,6\n김동현,남자,20110822,동성초,2,3,10,6,4,7,5,7\n김윤해,여자,20110506,동천초,6,6,10,7,12,8,12,3\n김태용,남자,20110325,동일초,2,18,10,10,2,11,2,9\n박성현,남자,20111014,동일초,2,20,10,11,8,12,8,13\n박우진,남자,20110801,용계초,1,6,10,12,12,11,10,12\n박주혜,여자,20111024,동일초,2,3,10,13,4,16,12,10\n손호윤,남자,20110418,동성초,1,6,10,15,3,15,5,15\n신지우,여자,20110316,동천초,1,8,10,16,2,18,1,16\n신호민,남자,20110219,동도초,6,21,10,17,2,20,2,15\n안채빈,여자,20110517,동천초,1,9,10,18,10,19,8,20\n이나윤,여자,20111110,동천초,8,13,10,19,10,23,7,20\n이서현,여자,20110514,동일초,3,9,10,20,10,25,12,19\n이연준,남자,20111001,동천초,7,26,10,21,6,23,6,26\n이재호,남자,20110818,동일초,2,23,10,22,12,22,9,21\n이채원,여자,20110404,동일초,2,11,10,23,11,23,10,25\n임영원,여자,20110602,영신초,3,12,10,24,4,26,1,22\n정윤지,여자,20111217,동천초,1,15,10,25,3,29,11,25\n정효재,남자,20110810,범어초,4,21,10,27,11,26,7,26\n조재윤,남자,20111001,동성초,2,10,10,28,7,27,6,28\n함선우,남자,20110405,동일초,3,27,10,29,6,30,4,29\n황경민,여자,20110302,동도초,2,12,10,30,5,30,11,30\n황지원,남자,20110608,동도초,7,26,10,31,12,31,6,31\n권민성,남자,20110519,동성초,4,1,11,1,6,4,1,3\n권은율,남자,20110910,동성초,7,1,11,2,8,2,8,3\n김단아,여자,20111124,동도초,1,4,11,3,4,6,2,5\n김동현,남자,20111114,동성초,3,4,11,4,2,5,12,2\n김민건,남자,20110825,동도초,2,14,11,5,3,8,4,5\n김진호,남자,20110328,동천초,6,21,11,7,3,11,9,8\n김태영,남자,20111025,동일초,4,20,11,8,1,12,9,9\n박연우,남자,20111120,관문초,3,15,11,10,5,12,8,15\n박지윤,여자,20110519,동일초,2,4,11,11,4,17,12,11\n박효비,여자,20111111,영신초,1,5,11,12,1,16,3,13\n신남훈,남자,20110831,동성초,3,10,11,13,9,13,9,15\n신지윤,여자,20110422,동천초,8,8,11,14,2,19,11,18\n신하원,남자,20110902,동천초,4,25,11,15,10,17,9,16\n안지슬,여자,20110129,동천초,8,9,11,16,6,20,6,18\n윤서연,여자,20110208,범어초,4,8,11,17,6,22,3,19\n이다연,여자,20110904,동천초,7,10,11,18,3,21,10,19\n이영찬,남자,20111123,삼덕초,2,25,11,19,4,22,10,23\n이재호,남자,20110728,동성초,1,9,11,20,10,27,4,20\n이현서,여자,20110731,동일초,3,11,11,21,8,21,12,22\n임소연,여자,20110317,동천초,3,16,11,22,1,22,11,23\n정은아,여자,20110207,계성초,4,23,11,23,9,24,12,25\n정하윤,여자,20110311,동천초,8,15,11,24,12,24,7,25\n조민규,남자,20110819,동성초,6,13,11,25,6,27,8,30\n조은호,남자,20110307,본리초,7,13,11,26,5,26,7,28\n황라희,여자,20110723,범어초,2,11,11,28,3,31,4,30\n황우현,남자,20111027,동신초,3,11,11,29,12,30,4,31\n김가인,여자,20111223,동일초,4,1,11,30,8,30,2,3\n권순후,남자,20110911,동일초,2,16,12,1,9,3,4,2\n권오성,남자,20111202,동성초,5,3,12,2,5,2,6,3\n김나영,여자,20110901,유가초,3,17,12,3,3,4,1,6\n김다현,여자,20111122,동천초,2,4,12,4,2,3,7,3\n김리하,남자,20110628,삼덕초,3,14,12,5,4,9,10,5\n김모정,남자,20111029,황금초,5,3,12,6,6,5,11,6\n김은지,여자,20110305,동천초,9,2,12,7,3,10,8,8\n김은혜,여자,20110927,동천초,1,2,12,8,8,7,9,6\n김찬우,남자,20110303,범어초,6,11,12,9,2,9,6,13\n김태영,남자,20110107,동일초,3,20,12,10,11,11,3,9\n박시형,남자,20110302,동도초,10,18,12,11,1,15,12,9\n박시후,남자,20110629,동성초,3,9,12,12,3,14,11,13\n박채원,여자,20110407,동천초,4,9,12,13,12,13,8,16\n박채은,여자,20110813,동천초,2,7,12,14,12,14,6,14\n신민재,남자,20111205,동일초,4,22,12,16,11,18,3,16\n심민진,여자,20111004,동도초,3,8,12,17,1,18,7,19\n안선홍,여자,20110420,동천초,7,8,12,18,10,18,4,16\n이봄,여자,20110330,계성초,4,17,12,19,1,19,12,18\n이서림,여자,20110516,동천초,5,9,12,20,11,20,8,21\n이원엽,남자,20110307,동일초,4,23,12,21,2,23,4,19\n이유호,남자,20110222,영신초,3,27,12,22,7,21,7,22\n이현수,여자,20110126,동도초,7,8,12,23,11,24,1,21\n임다윤,여자,20111211,동도초,1,13,12,24,3,26,9,24\n정재아,여자,20110604,동천초,5,14,12,25,8,28,5,25\n정하린,여자,20110511,동천초,9,11,12,26,6,26,3,25\n조성윤,남자,20110715,동일초,1,26,12,27,6,28,12,26\n조승현,남자,20110103,동성초,2,9,12,28,5,25,7,27\n하도윤,남자,20100620,동도초,4,25,12,29,1,29,10,30\n황서인,여자,20110302,수성초,4,22,12,30,5,31,1,31\n황선목,남자,20110506,동도초,6,26,12,31,8,29,2,30";
+// ---------- 학생 조회 (팝업) ----------
+// 열 순서: 이름,성별,생일,출신초,초6반,초6번,1학년반,1학년번,2학년반,2학년번,3학년반,3학년번
+const STU = STU_RAW.split('\n').map(l => { const a = l.split(','); return {n:a[0], g:a[1], b:a[2], es:a[3], e:+a[4], en:+a[5], c1:+a[6], n1:+a[7], c2:+a[8], n2:+a[9], c3:+a[10], n3:+a[11], m:+a[2].slice(4,6)}; })
+  .sort((x,y) => x.c3-y.c3 || x.n3-y.n3);
+const seq = n => Array.from({length:n}, (_,i) => i+1);
+const cntBy = k => { const o = {}; STU.forEach(s => o[s[k]] = (o[s[k]]||0)+1); return o; };
+const CNT = {c3:cntBy('c3'), c1:cntBy('c1'), c2:cntBy('c2'), m:cntBy('m'), es:cntBy('es'), g:cntBy('g')};
+const SEC = [
+  {k:'es', t:'출신초', v:Object.keys(CNT.es).sort((a,b) => CNT.es[b]-CNT.es[a] || a.localeCompare(b,'ko')), l:v => v},
+  {k:'c1', t:'1학년', v:seq(CLASS_COUNT), l:v => v+'반'},
+  {k:'c2', t:'2학년', v:seq(CLASS_COUNT), l:v => v+'반'},
+  {k:'c3', t:'3학년', v:seq(CLASS_COUNT), l:v => v+'반'},
+  {k:'m', t:'생월', v:seq(12), l:v => v+'월'}
+];
+let COLS = 4;
+const F = {}; let selG = '', curL = [], openCell = -1;
+const EASE2 = 'cubic-bezier(.32,.72,0,1)';
+const fmtB = b => b.slice(0,4)+'.'+b.slice(4,6)+'.'+b.slice(6);
+const detailHTML = s => '<h4>'+s.n+'<small>'+s.g+'</small></h4><div class="dg"><span>생일</span><b>'+fmtB(s.b)+'</b><span>출신초</span><b>'+s.es+' (6학년 '+s.e+'반 '+s.en+'번)</b>'
+  +'<span>1학년</span><b>'+s.c1+'반 '+s.n1+'번</b><span>2학년</span><b>'+s.c2+'반 '+s.n2+'번</b><span>3학년</span><b>'+s.c3+'반 '+s.n3+'번</b></div>';
+const TABS = SEC.filter(x => x.k !== 'm');
+const PAIRS = [['es','c1'],['c2','c3']];
+let actTab = '', segEls = [];
+$('fg').innerHTML = [['','전체'],['남자','남자'],['여자','여자']].map(g => '<button data-g="'+g[0]+'" type="button">'+g[1]+'</button>').join('');
+let mOpen = false, fOpen = false;
+const syncFOpen = () => { $('fwrap').classList.toggle('open', fOpen); $('fbtn').classList.toggle('on', fOpen); $('fbtn').setAttribute('aria-expanded', fOpen); };
+// 선택 표시(pill)를 버튼 사이로 슥 미끄러뜨림 — 크기는 항상 버튼 한 칸과 같음
+function placeInd(seg, anim){
+  if (!seg) return;
+  let ind = seg.querySelector('.ind');
+  if (!ind){ ind = document.createElement('span'); ind.className = 'ind'; seg.insertBefore(ind, seg.firstChild); seg.classList.add('hasind'); }
+  const on = seg.querySelector('button.on'); if (!on) return;
+  const vis = seg.offsetWidth > 0; anim = anim && vis;
+  if (!anim) ind.style.transition = 'none';
+  ind.style.left = on.offsetLeft + 'px'; ind.style.width = on.offsetWidth + 'px';
+  if (!anim){ void ind.offsetWidth; ind.style.transition = ''; }
+}
+const zSheet = () => isPC() ? zoomNow() : (parseFloat($('sheet').style.zoom) || 1);
+
+// ---- 탭 + 패널을 SVG 한 덩어리로 그림 (탭과 패널 사이 이음새·튀어나온 모서리 문제 해결) ----
+// 레이아웃(버튼 위치·패널 높이)을 매 프레임 읽어서 도형을 다시 그리므로 애니메이션 중에도 늘 딱 맞음
+const SVGNS = 'http://www.w3.org/2000/svg';
+const setA = (el, o) => { for (const k in o) el.setAttribute(k, o[k]); };
+function initShape(seg, L, R, slot){
+  const svg = document.createElementNS(SVGNS, 'svg');
+  svg.setAttribute('class', 'fsvg'); svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = '<g class="sh"><rect/><rect/><rect/><path/><path/></g>';
+  seg.insertBefore(svg, seg.firstChild);
+  Object.assign(seg, {_L:L, _R:R, _slot:slot, _svg:svg, _g:svg.firstChild, _pos:0, _raf:0});
+  new ResizeObserver(() => drawShape(seg)).observe(seg);
+}
+function drawShape(seg){
+  const R0 = seg.getBoundingClientRect(); if (!R0.width) return;
+  const z = zSheet(), W = R0.width/z, H = R0.height/z;
+  const q = r => ({l:(r.left-R0.left)/z, r:(r.right-R0.left)/z, t:(r.top-R0.top)/z, b:(r.bottom-R0.top)/z});
+  const a = q(seg._L.getBoundingClientRect()), b = q(seg._R.getBoundingClientRect()), sl = q(seg._slot.getBoundingClientRect());
+  const p = seg._pos, x0 = a.l + (b.l-a.l)*p, x1 = a.r + (b.r-a.r)*p;
+  const Ht = a.b, y0 = sl.t, ph = Math.max(0, sl.b - sl.t), gap = Math.max(0, y0 - Ht);
+  const u = Math.min(1, ph/24), rb = Math.min(24, ph/2), f = Math.min(8, gap, ph);
+  const [A, B, C, D, E] = seg._g.children, by = Ht - Ht/2*u;
+  setA(seg._svg, {viewBox:'0 0 '+W+' '+H});
+  setA(A, {x:x0, y:0, width:x1-x0, height:Ht, rx:Ht/2});                                         // 탭(알약)
+  setA(B, {x:x0, y:by, width:x1-x0, height:Math.max(0, y0 + Math.min(ph,24) - by)});             // 탭 ↔ 패널 연결부
+  setA(C, {x:0, y:y0, width:W, height:ph, rx:rb});                                               // 패널
+  const fl = Math.min(f, x0), fr = Math.min(f, W-x1);                                            // 탭 옆 안쪽 둥근 모서리
+  D.setAttribute('d', fl > .2 ? 'M'+(x0+.6)+' '+(y0-fl)+'L'+x0+' '+(y0-fl)+'A'+fl+' '+fl+' 0 0 1 '+(x0-fl)+' '+y0+'L'+(x0-fl)+' '+(y0+.6)+'L'+(x0+.6)+' '+(y0+.6)+'Z' : '');
+  E.setAttribute('d', fr > .2 ? 'M'+(x1-.6)+' '+(y0-fr)+'L'+x1+' '+(y0-fr)+'A'+fr+' '+fr+' 0 0 0 '+(x1+fr)+' '+y0+'L'+(x1+fr)+' '+(y0+.6)+'L'+(x1-.6)+' '+(y0+.6)+'Z' : '');
+}
+function tweenPos(seg, to){
+  cancelAnimationFrame(seg._raf);
+  const from = seg._pos, t0 = performance.now(), D = 220;
+  const f = n => { const p = Math.min(1, (n-t0)/D), e = 1 - Math.pow(1-p, 3); seg._pos = from + (to-from)*e; drawShape(seg); if (p < 1) seg._raf = requestAnimationFrame(f); };
+  seg._raf = requestAnimationFrame(f);
+}
+
+// 탭 버튼과 패널은 한 번만 만들고, 열고 닫는 건 클래스만 바꿈 → 생월처럼 스윽 펼쳐짐
+function renderTabs(){
+  $('ftabs').innerHTML = PAIRS.map(pair => '<div class="fseg">'+pair.map(k => {
+    const t = TABS.find(x => x.k === k);
+    return '<button class="ft" data-t="'+k+'" type="button"><span class="tn">'+t.t+'</span><em></em></button>';
+  }).join('')+'<div class="fslot shut"><div class="fpi"><div class="fpan"></div></div></div></div>').join('');
+  segEls = [...$('ftabs').children];
+  segEls.forEach(seg => initShape(seg, seg.children[0], seg.children[1], seg.querySelector('.fslot')));
+}
+function buildMonth(){
+  const mc = v => '<button class="chip" data-v="'+v+'" type="button">'+v+'월</button>';
+  $('mpan').innerHTML = '<button class="chip" data-clear="1" type="button">전체</button><div class="six">'+seq(6).map(mc).join('')+'</div><div class="six">'+seq(6).map(v => mc(v+6)).join('')+'</div>';
+}
+function fillPanel(seg, k, anim){
+  const sec = SEC.find(x => x.k === k), el = seg.querySelector('.fpan'), fpi = el.parentNode, z = zSheet();
+  fpi.getAnimations().forEach(a => a.cancel());
+  const h0 = fpi.getBoundingClientRect().height / z;
+  const chip = v => '<button class="chip" data-v="'+String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" type="button">'+sec.l(v)+'</button>';
+  const clr = '<button class="chip" data-clear="1" type="button">전체</button>';
+  if (k === 'es') el.innerHTML = clr+'<div class="four">'+sec.v.map(chip).join('')+'</div>';
+  else el.innerHTML = clr+'<div class="six">'+sec.v.slice(0,6).map(chip).join('')+'</div><div class="six">'+sec.v.slice(6,12).map(chip).join('')+'</div>';
+  if (!anim) return;
+  const h1 = fpi.getBoundingClientRect().height / z;
+  if (Math.abs(h0-h1) > 1) fpi.animate([{height:h0+'px'}, {height:h1+'px'}], {duration:220, easing:EASE_OUT});
+  el.animate([{opacity:0, transform:'translateY(6px)'}, {opacity:1, transform:'none'}], {duration:190, easing:'ease-out'});
+}
+function setTab(k, anim){
+  actTab = k;
+  segEls.forEach((seg, i) => {
+    const pair = PAIRS[i], slot = seg._slot;
+    if (pair.includes(k)){
+      const side = pair.indexOf(k), was = seg.classList.contains('open');
+      if (was && anim && seg._pos !== side) tweenPos(seg, side);
+      else { cancelAnimationFrame(seg._raf); seg._pos = side; }
+      if (seg._k !== k){ fillPanel(seg, k, was && anim); seg._k = k; }
+      seg.classList.add('open'); slot.classList.remove('shut');
+    } else { seg.classList.remove('open'); slot.classList.add('shut'); }
+  });
+  syncUI();
+}
+function syncMonthSeg(){
+  $('mseg').classList.toggle('open', mOpen);
+  $('mpw').classList.toggle('shut', !mOpen);
+}
+function syncUI(){
+  document.querySelectorAll('#fg button').forEach(b => b.classList.toggle('on', b.dataset.g === selG));
+  placeInd($('fg'), true);
+  SEC.forEach(t => {
+    const el = document.querySelector('.ft[data-t="'+t.k+'"]'), set = F[t.k];
+    el.classList.toggle('act', t.k === 'm' ? mOpen : t.k === actTab); el.classList.toggle('set', set.size > 0);
+    el.querySelector('em').textContent = [...set].sort((x,y) => typeof x === 'number' ? x-y : 0).map(v => t.l(v)).join(', ');
+  });
+  document.querySelectorAll('#mpan .chip').forEach(b => b.classList.toggle('on', b.dataset.clear ? !F.m.size : F.m.has(+b.dataset.v)));
+  const nf = (selG ? 1 : 0) + SEC.filter(x => F[x.k].size).length;
+  $('fbadge').textContent = nf || ''; $('fbadge').hidden = !nf;
+  segEls.forEach(seg => { const k = seg._k; if (!k) return;
+    seg.querySelectorAll('.fpan .chip').forEach(b => b.classList.toggle('on', b.dataset.clear ? !F[k].size : F[k].has(k === 'es' ? b.dataset.v : +b.dataset.v))); });
+}
+function resetF(){ SEC.forEach(s => F[s.k] = new Set()); selG = ''; $('sq').value = ''; }
+resetF(); renderTabs(); buildMonth(); initShape($('mseg'), $('fg'), $('mbtn'), $('mpw')); $('mseg')._pos = 1; syncMonthSeg(); setTab('', false);
+function swapRes(html, hEst){
+  const el = $('sres'), h0 = el.offsetHeight;
+  el.getAnimations({subtree:true}).forEach(a => a.cancel());
+  el.style.transition = 'none'; el.style.height = ''; el.style.overflow = '';
+  el.innerHTML = html;
+  const h1 = hEst || el.offsetHeight;
+  if (h0 && el.animate){
+    el.style.overflow = 'hidden'; el.style.height = h0+'px'; el.offsetHeight;
+    el.style.transition = 'height .3s '+EASE2; el.style.height = h1+'px';
+    clearTimeout(el._t); el._t = setTimeout(() => { el.style.transition = el.style.height = el.style.overflow = ''; }, 330);
+  }
+  revealStu();
+}
+// 화면에 들어오는 박스부터 행 단위로 차례대로 블러에서 선명해짐 (스크롤해서 새로 보이는 박스도 똑같이)
+let stuIO = null;
+function revealStu(){
+  if (stuIO) stuIO.disconnect();
+  const els = [...$('sres').querySelectorAll('.sc')]; if (!els.length) return;
+  stuIO = new IntersectionObserver(es => {
+    const vis = es.filter(e => e.isIntersecting).map(e => e.target).sort((x,y) => +x.dataset.i - +y.dataset.i);
+    if (!vis.length) return;
+    const r0 = Math.floor(vis[0].dataset.i / COLS);
+    vis.forEach(c => {
+      stuIO.unobserve(c); c.classList.remove('pre');
+      const i = +c.dataset.i, row = Math.floor(i/COLS) - r0, col = i % COLS;
+      c.animate([{opacity:0, filter:'blur(7px)', transform:'translateY(10px) scale(.94)'}, {opacity:1, filter:'blur(0)', transform:'none'}],
+        {duration:460, delay:Math.min(row,9)*55 + col*22, easing:EASE2, fill:'backwards'});
+    });
+  }, {root:$('sbody'), rootMargin:'0px 0px 40px 0px', threshold:0.01});
+  els.forEach(c => stuIO.observe(c));
+}
+function syncStu(){
+  const q = $('sq').value.trim();
+  syncUI();
+  const L = curL = STU.filter(s => (!q || s.n.includes(q)) && (!selG || s.g === selG) && SEC.every(x => !F[x.k].size || F[x.k].has(s[x.k])));
+  openCell = -1;
+  $('fn').textContent = L.length+'명';
+  const n = L.length, tok = ++chunkTok, FIRST = 48;
+  let h = '', i = 0;
+  for (; i < Math.min(FIRST, n); i++) h += scHTML(L[i], i, n);
+  swapRes(h || '<div class="sl">조건에 맞는 학생이 없어요</div>', n ? Math.ceil(n/COLS)*51 : 0);
+  // 나머지 학생은 프레임마다 조금씩 이어서 그림 (한 번에 349명을 만들면 그 순간 화면이 끊김)
+  const more = () => {
+    if (tok !== chunkTok || i >= n) return;
+    const start = i, end = Math.min(n, i + 60); let t = '';
+    for (; i < end; i++) t += scHTML(L[i], i, n);
+    const el = $('sres'); el.insertAdjacentHTML('beforeend', t);
+    if (stuIO) [...el.children].filter(c => c.classList.contains('sc') && +c.dataset.i >= start).forEach(c => stuIO.observe(c));
+    requestAnimationFrame(more);
+  };
+  if (n > FIRST) requestAnimationFrame(() => requestAnimationFrame(more));
+}
+let chunkTok = 0;
+const scHTML = (s, i, n) => '<button class="sc pre" data-i="'+i+'" type="button"><span>3학년 '+s.c3+'반 '+s.n3+'번</span><b>'+s.n+'</b></button>'
+  + (i % COLS === COLS-1 || i === n-1 ? '<div class="dp"><div><div class="di"></div></div></div>' : '');
+function pickCell(i){
+  const row = Math.floor(i/COLS), dps = [...document.querySelectorAll('#sres .dp')], same = openCell === i;
+  dps.forEach((d,r) => { if (same || r !== row) d.classList.remove('open'); });
+  document.querySelectorAll('#sres .sc').forEach(c => c.classList.toggle('on', !same && +c.dataset.i === i));
+  if (same){ openCell = -1; return; }
+  const d = dps[row], s = curL[i], di = d.querySelector('.di');
+  di.innerHTML = detailHTML(s);
+  di.animate([{opacity:0, transform:'translateY(5px)'}, {opacity:1, transform:'none'}], {duration:220, easing:EASE2});
+  d.classList.add('open'); openCell = i;
+  setTimeout(() => d.scrollIntoView({block:'nearest', behavior:'smooth'}), 200);
+}
+$('sheet').addEventListener('click', e => {
+  const sc = e.target.closest('.sc'); if (sc){ pickCell(+sc.dataset.i); return; }
+  const ft = e.target.closest('.ft');
+  if (ft){
+    if (ft.dataset.t === 'm'){ mOpen = !mOpen; syncMonthSeg(); syncUI(); return; }
+    setTab(actTab === ft.dataset.t ? '' : ft.dataset.t, true); return;
+  }
+  const g = e.target.closest('#fg button'); if (g){ selG = g.dataset.g; syncStu(); return; }
+  const mc = e.target.closest('#mpan .chip');
+  if (mc){ if (mc.dataset.clear) F.m.clear(); else { const v = +mc.dataset.v; F.m.has(v) ? F.m.delete(v) : F.m.add(v); } syncStu(); return; }
+  const b = e.target.closest('.fpan .chip'); if (!b) return;
+  const k = b.closest('.fseg')._k;
+  if (b.dataset.clear) F[k].clear();
+  else { const v = k === 'es' ? b.dataset.v : +b.dataset.v; F[k].has(v) ? F[k].delete(v) : F[k].add(v); }
+  syncStu();
+});
+$('sq').addEventListener('input', syncStu);
+$('fbtn').addEventListener('click', () => { fOpen = !fOpen; syncFOpen(); });
+// 스크롤 위치에 따라 위/아래 블러 페이드를 켜고 끔 (맨 위에서는 내용이 흐려 보이지 않게)
+const sbEl = $('sbody'), sbwEl = $('sbw');
+function updFade(){ sbwEl.classList.toggle('st', sbEl.scrollTop > 2); sbwEl.classList.toggle('sbt', sbEl.scrollTop + sbEl.clientHeight < sbEl.scrollHeight - 2); }
+sbEl.addEventListener('scroll', updFade, {passive:true});
+const fadeRO = new ResizeObserver(updFade); fadeRO.observe(sbEl); fadeRO.observe($('sres')); fadeRO.observe($('fwrap'));
+$('frs').addEventListener('click', () => { resetF(); syncStu(); });
+document.documentElement.appendChild($('pop'));
+
+// 팝업 열기/닫기 공통 (학생 조회·히트맵)
+const popTok = new WeakMap();
+const syncLock = () => document.documentElement.classList.toggle('lock', !$('cpop').hidden || (!isPC() && (!$('pop').hidden || !$('hpop').hidden)));
+['touchmove','wheel'].forEach(ev => document.addEventListener(ev, e => {
+  if (document.documentElement.classList.contains('lock') && !(e.target.closest && e.target.closest('#sbody,#hbody,#hsheet'))) e.preventDefault();
+}, {passive:false}));
+const popSrc = new WeakMap();
+const EASE_OUT = 'cubic-bezier(.22,.61,.36,1)';
+const T_OPEN = 330, T_CLOSE = 297;
+const px = v => v+'px';
+const SVGN = 'http://www.w3.org/2000/svg';
+const easeO = x => 1 - Math.pow(1 - x, 3);
+// CSS cubic-bezier(.22,.61,.36,1)과 같은 곡선을 JS에서도 쓰려고 직접 계산 (닫힐 때 도형과 내용이 같은 곡선으로 줄어들게)
+const bez = (x1,y1,x2,y2) => x => {
+  const B = (a,b,t) => 3*a*(1-t)*(1-t)*t + 3*b*(1-t)*t*t + t*t*t;
+  let lo = 0, hi = 1, t = x;
+  for (let i = 0; i < 40; i++){ const xt = B(x1,x2,t); if (Math.abs(xt-x) < 1e-6) break; if (xt < x) lo = t; else hi = t; t = (lo+hi)/2; }
+  return B(y1,y2,t);
+};
+const easeC = bez(0,0,.58,1);   // CSS 표준 ease-out 과 같은 곡선
+const LAG = .22, EARLY = .14;
+const rectPts = r => [[r.left,r.top],[r.right,r.top],[r.right,r.bottom],[r.left,r.bottom]];   // 좌상, 우상, 우하, 좌하
+// 네 점을 둥근 모서리로 이은 도형 (모서리마다 위치가 달라도 됨)
+function roundPath(P, r){
+  let d = '';
+  for (let i = 0; i < 4; i++){
+    const p0 = P[(i+3)%4], p1 = P[i], p2 = P[(i+1)%4];
+    const l1 = Math.hypot(p0[0]-p1[0], p0[1]-p1[1]) || 1, l2 = Math.hypot(p2[0]-p1[0], p2[1]-p1[1]) || 1;
+    const k1 = Math.min(r, l1/2)/l1, k2 = Math.min(r, l2/2)/l2;
+    const a = [p1[0]+(p0[0]-p1[0])*k1, p1[1]+(p0[1]-p1[1])*k1], b = [p1[0]+(p2[0]-p1[0])*k2, p1[1]+(p2[1]-p1[1])*k2];
+    const c1 = [a[0]+(p1[0]-a[0])*.5523, a[1]+(p1[1]-a[1])*.5523], c2 = [b[0]+(p1[0]-b[0])*.5523, b[1]+(p1[1]-b[1])*.5523];
+    d += (i ? 'L' : 'M')+a[0]+' '+a[1]+'C'+c1[0]+' '+c1[1]+' '+c2[0]+' '+c2[1]+' '+b[0]+' '+b[1];
+  }
+  return d+'Z';
+}
+function clearMorph(pop){ cancelAnimationFrame(pop._mr || 0); pop.querySelectorAll('.shell,.ghost').forEach(n => n.remove()); }
+function mkShell(pop){
+  const svg = document.createElementNS(SVGN, 'svg'), p = document.createElementNS(SVGN, 'path');
+  svg.setAttribute('class', 'shell'); svg.appendChild(p); pop.appendChild(svg); return {svg, p};
+}
+// 모서리 4개가 각자 움직임: 버튼(또는 팝업)에서 먼 모서리일수록 늦게 출발하고, 가까운 모서리는 먼저 도착
+// 열 때: 위쪽 모서리(버튼에 가까움)가 앞서고 아래쪽이 늦게 따라옴 / 닫을 때: 먼 아래쪽이 먼저 빨려 들어감
+function morph(pop, path, A, B, dur, z, closing){
+  const dist = A.map((a,i) => Math.hypot(a[0]-B[i][0], a[1]-B[i][1])), mx = Math.max(...dist) || 1;
+  // 열 때: 가까운 꼭짓점이 먼저 출발·먼저 도착(시차) / 닫을 때: 모든 꼭짓점이 한 곡선으로 함께 줄어듦
+  const win = closing ? dist.map(() => [0, 1]) : dist.map(d => { const r = d/mx; return [LAG*r, 1-EARLY*(1-r)]; });
+  const ease = closing ? easeC : easeO, R = 30*z, t0 = performance.now();
+  const frame = n => {
+    const t = Math.min(1, (n-t0)/dur);
+    const P = A.map((a,i) => { const w = win[i], k = ease(Math.max(0, Math.min(1, (t-w[0])/(w[1]-w[0])))); return [a[0]+(B[i][0]-a[0])*k, a[1]+(B[i][1]-a[1])*k]; });
+    path.setAttribute('d', roundPath(P, R));
+    if (t < 1) pop._mr = requestAnimationFrame(frame);
+  };
+  frame(t0); if (dur > 0) pop._mr = requestAnimationFrame(frame);
+}
+// 버튼 글자(또는 헤더)는 버튼 자리에 그대로 두고 따로 페이드
+function mkGhost(pop, src){
+  const b = src.getBoundingClientRect(), zb = zoomNow();
+  const g = document.createElement('div'); g.className = 'ghost' + (src.id === 'hdr' ? ' gh' : '');
+  g.innerHTML = src.innerHTML; g.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+  g.style.cssText = 'zoom:'+zb+';left:'+px(b.left/zb)+';top:'+px(b.top/zb)+';width:'+px(b.width/zb)+';height:'+px(b.height/zb);
+  pop.appendChild(g); return g;
+}
+// 블러(backdrop-filter)는 내용물의 형제 레이어에 두고, 팝업 크기를 따라가게 함
+// -> 학생 박스 같은 자식 애니메이션이 시작돼도 블러가 풀리지 않음
+function syncGlass(pop, sheet){
+  const g = pop._glass, r = sheet.getBoundingClientRect(); if (!g || !r.width) return;
+  const z = parseFloat(sheet.style.zoom) || 1;
+  g.style.cssText = 'left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;border-radius:'+(30*z)+'px';
+}
+function ensureGlass(pop, sheet){
+  if (!pop._glass){
+    const g = document.createElement('div'); g.className = 'glass'; pop.insertBefore(g, sheet); pop._glass = g; pop._sheet = sheet;
+    new ResizeObserver(() => syncGlass(pop, sheet)).observe(sheet);
+  }
+  syncGlass(pop, sheet); return pop._glass;
+}
+function showPop(pop, bg, sheet, parts, src, opt){
+  const blur = !!(opt && opt.blur);
+  pop._closing = false;
+  popTok.set(pop, (popTok.get(pop)||0)+1); popSrc.set(pop, src || null);
+  bg.getAnimations().forEach(a => a.cancel()); sheet.getAnimations({subtree:true}).forEach(a => a.cancel()); clearMorph(pop);
+  document.querySelectorAll('#detail.grown,#heat.grown,#hdr.grown').forEach(el => el.classList.remove('grown'));
+  pop.classList.remove('up'); sheet.style.transformOrigin = ''; document.documentElement.classList.remove('unb');
+  pop.hidden = false; syncLock(); sheet.scrollTop = 0;
+  const glass = ensureGlass(pop, sheet); glass.getAnimations().forEach(a => a.cancel());
+  bg.animate([{opacity:0},{opacity:1}], {duration:T_OPEN, easing:EASE_OUT, fill:'backwards'});
+  let base = 70;
+  if (src){
+    src.classList.add('grown');
+    const z = parseFloat(sheet.style.zoom) || 1, sr = sheet.getBoundingClientRect(), br = src.getBoundingClientRect();
+    const {svg, p} = mkShell(pop), g = mkGhost(pop, src), head = T_OPEN*(blur ? .55 : .72), tail = T_OPEN - head;
+    morph(pop, p, rectPts(br), rectPts(sr), T_OPEN, z, false);
+    svg.animate([{opacity:1},{opacity:0}], {duration:tail, delay:head, easing:'linear', fill:'forwards'}).finished.then(() => svg.remove()).catch(() => {});
+    if (blur){ pop.classList.add('up'); const tk = popTok.get(pop); setTimeout(() => { if (popTok.get(pop) === tk) pop.classList.remove('up'); }, T_OPEN); }   // 크레딧: 내용이 상자 위에서 바로 블러로 나타남
+    else sheet.animate([{opacity:0},{opacity:1}], {duration:tail, delay:head, easing:'linear', fill:'backwards'});
+    glass.animate([{opacity:0},{opacity:1}], {duration:tail, delay:head, easing:'linear', fill:'backwards'});
+    g.animate([{opacity:1},{opacity:0}], {duration:90, easing:'ease-out', fill:'forwards'}).finished.then(() => g.remove()).catch(() => {});
+    base = blur ? T_OPEN*.08 : head;
+  } else { const kf = [{opacity:0, transform:'translateY(28px) scale(.95)'}, {opacity:1, transform:'none'}], o = {duration:T_OPEN, easing:EASE_OUT, fill:'backwards'}; sheet.animate(kf, o); glass.animate(kf, o); }
+  // 끝 keyframe에 opacity 를 적지 않음 -> 요소 원래 투명도(예: 회색 글자 .55)로 자연스럽게 도착 (끝에서 색이 바뀌어 보이지 않음)
+  const kf = blur ? [{opacity:0, transform:'translateY(14px) scale(.95)', filter:'blur(10px)'}, {transform:'none', filter:'blur(0)'}]
+                  : [{opacity:0, transform:'translateY(8px)'}, {transform:'none'}];
+  parts.forEach((el,i) => el.animate(kf, {duration:blur ? 420 : 150, delay:base+i*(blur ? 60 : 12), easing:EASE_OUT, fill:'backwards'}));
+}
+function hidePop(pop, bg, sheet){
+  if (pop.hidden || pop._closing) return;
+  pop._closing = true;
+  const tok = (popTok.get(pop)||0)+1; popTok.set(pop, tok);
+  bg.getAnimations().forEach(a => a.cancel()); sheet.getAnimations({subtree:true}).forEach(a => a.cancel()); clearMorph(pop);
+  const src = popSrc.get(pop), glass = ensureGlass(pop, sheet); glass.getAnimations().forEach(a => a.cancel());
+  const fade = bg.animate([{opacity:1},{opacity:0}], {duration:T_CLOSE, easing:EASE_OUT, fill:'both'});
+  if (src){
+    const z = parseFloat(sheet.style.zoom) || 1, sr = sheet.getBoundingClientRect(), br = src.getBoundingClientRect();
+    const {svg, p} = mkShell(pop), g = mkGhost(pop, src);
+    pop.classList.add('up');   // 내용물이 상자 위에 보인 채로 같이 줄어듦
+    svg.animate([{opacity:0},{opacity:1}], {duration:55, easing:'linear', fill:'both'});
+    morph(pop, p, rectPts(sr), rectPts(br), T_CLOSE, z, true);
+    const ox = (br.left + br.width/2 - sr.left)/z, oy = (br.top + br.height/2 - sr.top)/z, sc = Math.max(.18, Math.min(.5, br.width/sr.width));
+    sheet.style.transformOrigin = ox+'px '+oy+'px';
+    sheet.animate([{transform:'none', opacity:1}, {transform:'scale('+sc+')', opacity:0}], {duration:T_CLOSE, easing:'ease-out', fill:'both'});
+    setTimeout(() => { if (popTok.get(pop) === tok) document.documentElement.classList.add('unb'); }, T_CLOSE*.3);   // 뒤 화면 블러는 닫히는 중반부터 서서히 풀림
+    glass.animate([{opacity:1},{opacity:0}], {duration:40, delay:55, easing:'linear', fill:'both'});
+    g.animate([{opacity:0},{opacity:1}], {duration:90, delay:T_CLOSE-100, easing:'ease-out', fill:'both'});
+  } else {
+    [...sheet.children].forEach(c => c.animate([{opacity:1},{opacity:0}], {duration:80, easing:EASE_OUT, fill:'both'}));
+    const kf = [{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(22px) scale(.96)'}], o = {duration:T_CLOSE, easing:EASE_OUT, fill:'both'}; sheet.animate(kf, o); glass.animate(kf, o);
+  }
+  fade.finished.then(() => {
+    pop._closing = false;
+    if (popTok.get(pop) !== tok) return;
+    pop.hidden = true; if (src) src.classList.remove('grown'); clearMorph(pop); pop.classList.remove('up'); sheet.style.transformOrigin = ''; document.documentElement.classList.remove('unb'); syncLock();
+  }).catch(() => {});
+}
+let openTm = 0, pcCur = '';
+function prepStu(){
+  $('sbody').scrollTop = 0; resetF(); $('sres').innerHTML = ''; $('fn').textContent = STU.length+'명';
+  mOpen = false; fOpen = false; buildMonth(); syncMonthSeg(); setTab('', false); syncFOpen();
+}
+function openStu(){
+  if (isPC()) return pcShow('stu');
+  clearTimeout(openTm);
+  prepStu();
+  showPop($('pop'), $('popbg'), $('sheet'), [$('sheet').querySelector('.ch'), $('srow'), $('fcnt')], $('detail'));
+  requestAnimationFrame(() => placeInd($('fg'), false));
+  openTm = setTimeout(syncStu, T_OPEN + 50);   // 팝업 애니메이션이 끊기지 않도록 목록은 살짝 뒤에 그림
+}
+function closeStu(){ if (isPC()) return; clearTimeout(openTm); hidePop($('pop'), $('popbg'), $('sheet')); }
+// PC: 오른쪽 패널에 통계/검색 중 하나를 항상 보여줌
+function pcShow(w){
+  if (pcCur === w) return;
+  pcCur = w;
+  const on = w === 'stu' ? $('pop') : $('hpop'), off = w === 'stu' ? $('hpop') : $('pop');
+  popTok.set(off, (popTok.get(off)||0)+1); off.hidden = true;
+  if (w === 'stu') prepStu(); else prepHeat();
+  on.hidden = false;
+  if (w === 'stu') syncStu();
+  requestAnimationFrame(() => { placeInd($('hseg'), false); placeInd($('fg'), false); });
+  const sh = w === 'stu' ? $('sheet') : $('hsheet');
+  sh.getAnimations().forEach(a => a.cancel());
+  sh.animate([{opacity:0, filter:'blur(6px)'}, {opacity:1, filter:'blur(0)'}], {duration:300, easing:EASE_OUT});
+  $('detail').classList.toggle('pcon', w === 'stu'); $('heat').classList.toggle('pcon', w === 'heat');
+}
+
+// ---------- 생일 히트맵 ----------
+const MDAYS = [31,28,31,30,31,30,31,31,30,31,30,31];   // 365일
+const HEAT = {};
+STU.forEach(s => { const k = +s.b.slice(4,6)*100 + +s.b.slice(6,8); (HEAT[k] = HEAT[k] || []).push(s); });
+const lvl = n => Math.min(4, n);
+let hL = [];
+$('hgrid').innerHTML = MDAYS.map((nd, mi) => {
+  let cells = '';
+  for (let d = 1; d <= nd; d++){ const k = (mi+1)*100+d, n = (HEAT[k] || []).length; cells += '<button class="hc l'+lvl(n)+'" data-k="'+k+'" type="button" aria-label="'+(mi+1)+'월 '+d+'일"></button>'; }
+  return cells;
+}).join('');
+$('hsum').textContent = '365일 · '+STU.length+'명';
+const listHTML = L => '<div class="hres">'+L.map((s,i) => '<button class="sc" data-i="'+i+'" type="button"><span>3학년 '+s.c3+'반 '+s.n3+'번</span><b>'+s.n+'</b></button>'
+  + (i % COLS === COLS-1 || i === L.length-1 ? '<div class="dp"><div><div class="di"></div></div></div>' : '')).join('')+'</div>';
+function showHeat(k, anim){
+  document.querySelectorAll('#hgrid .hc').forEach(c => c.classList.toggle('on', +c.dataset.k === k));
+  const el = $('hinfo'), h0 = el.offsetHeight;
+  el.getAnimations({subtree:true}).forEach(a => a.cancel());
+  hL = HEAT[k] || []; el._o = -1;
+  el.innerHTML = '<div class="hh"><b>'+Math.floor(k/100)+'월 '+(k%100)+'일</b><small>'+(hL.length ? hL.length+'명' : '생일인 학생이 없어요')+'</small></div>'
+    + (hL.length ? listHTML(hL) : '');
+  if (!anim) return;
+  const h1 = el.offsetHeight;
+  if (h0 !== h1){   // 높이도 부드럽게
+    el.style.transition = 'none'; el.style.overflow = 'hidden'; el.style.height = h0+'px'; el.offsetHeight;
+    el.style.transition = 'height .45s '+EASE2; el.style.height = h1+'px';
+    clearTimeout(el._t); el._t = setTimeout(() => { el.style.transition = el.style.height = el.style.overflow = ''; }, 470);
+  }
+  el.querySelector('.hh').animate([{opacity:0}, {opacity:1}], {duration:380, easing:EASE2});
+  el.querySelectorAll('.sc').forEach((c,i) => c.animate(
+    [{opacity:0, transform:'translateY(10px) scale(.94)'}, {opacity:1, transform:'none'}],
+    {duration:480, delay:120+Math.min(i,12)*60, easing:EASE2, fill:'backwards'}));
+}
+// 다가오는 가장 가까운 생일 (오늘 포함, 올해 지났으면 내년)
+let nextK = 0, nextL = [];
+function showNext(){
+  const n = today(), t0 = new Date(n.getFullYear(), n.getMonth(), n.getDate()), tk = (n.getMonth()+1)*100 + n.getDate();
+  const ks = Object.keys(HEAT).map(Number).sort((a,b) => a-b);
+  nextK = ks.find(k => k >= tk) || ks[0] || 0; nextL = HEAT[nextK] || [];
+  const el = $('hnext'); el._o = -1;
+  if (!nextK){ el.innerHTML = '<div class="hh"><b>다가오는 생일</b><small>정보가 없어요</small></div>'; return; }
+  const m = Math.floor(nextK/100), d = nextK%100;
+  let y = t0.getFullYear(); if (new Date(y, m-1, d) < t0) y++;
+  const diff = Math.round((new Date(y, m-1, d) - t0) / 86400000);
+  el.innerHTML = '<div class="hh lk" data-k="'+nextK+'"><b>다가오는 생일 '+m+'월 '+d+'일</b><small class="dd">'+(diff === 0 ? '오늘' : 'D-'+diff)+'</small></div>' + listHTML(nextL);
+}
+function pickIn(root, L, i){
+  const row = Math.floor(i/COLS), dps = [...root.querySelectorAll('.dp')], same = root._o === i;
+  dps.forEach((d,r) => { if (same || r !== row) d.classList.remove('open'); });
+  root.querySelectorAll('.sc').forEach(c => c.classList.toggle('on', !same && +c.dataset.i === i));
+  if (same){ root._o = -1; return; }
+  const d = dps[row], di = d.querySelector('.di');
+  di.innerHTML = detailHTML(L[i]);
+  di.animate([{opacity:0, transform:'translateY(5px)'}, {opacity:1, transform:'none'}], {duration:220, easing:EASE2});
+  d.classList.add('open'); root._o = i;
+  setTimeout(() => d.scrollIntoView({block:'nearest', behavior:'smooth'}), 200);
+}
+// 통계 탭: 생일(히트맵) / 출신초 / 생월 — 출신초·생월은 #hes, #hmo 안에 내용을 채우면 됨
+let hTab = 'birth';
+function setHTab(p, anim){
+  hTab = p;
+  const sh = $('hsheet'), z = (isPC() ? zoomNow() : (parseFloat(sh.style.zoom) || 1));
+  if (anim) sh.getAnimations().forEach(a => { if (a.id === 'hh') a.cancel(); });
+  const h0 = sh.getBoundingClientRect().height / z;
+  document.querySelectorAll('#hseg button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  placeInd($('hseg'), anim);
+  document.querySelectorAll('#hsheet .spane').forEach(el => {
+    const on = el.id === 'p-'+p; if (on === !el.hidden) return;
+    el.hidden = !on;
+    if (on && anim) el.animate([{opacity:0, transform:'translateY(8px)'}, {opacity:1, transform:'none'}], {duration:280, easing:EASE_OUT});
+  });
+  $('hbody').scrollTop = 0;
+  if (!anim) return;
+  // 탭마다 팝업 높이가 다르니 ease-out 으로 부드럽게 늘어나고 줄어듦
+  const h1 = sh.getBoundingClientRect().height / z;
+  if (Math.abs(h0-h1) > 1){ const a = sh.animate([{height:h0+'px'}, {height:h1+'px'}], {duration:280, easing:EASE_OUT}); a.id = 'hh'; }
+}
+$('hseg').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.p !== hTab) setHTab(b.dataset.p, true); });
+// ---------- 생월 · 출신초 통계 ----------
+// 전체 분포 + 1~12반 분포(영역막대). 영역을 누르면 그 영역 바로 아래에 학생 박스가 톡 떠오르고, 박스를 누르면 상세정보
+const ES_TOP = SEC.find(x => x.k === 'es').v.slice(0, 8);
+const STAT = {
+  m:  {title:'생월', cats:seq(12), name:v => v+'월', of:s => s.m, color:i => 'hsl('+((330+i*30)%360)+' 30% 54%)'},
+  es: {title:'출신초', cats:[...ES_TOP, '기타'], name:v => v, of:s => ES_TOP.includes(s.es) ? s.es : '기타', color:i => i < ES_TOP.length ? 'hsl('+((330+i*38)%360)+' 28% 54%)' : 'hsl(0 0% 44%)'}
+};
+function barHTML(k, scope, arr, sm){
+  const C = STAT[k];
+  return '<div class="abar'+(sm ? ' sm' : '')+'">'+arr.map((n,i) => !n ? '' :
+    '<button type="button" class="ab" data-s="'+scope+'" data-ci="'+i+'" style="flex:'+n+' 1 0;background:'+C.color(i)+'" aria-label="'+C.name(C.cats[i])+'"></button>').join('')+'</div>';
+}
+function buildStat(k){
+  const C = STAT[k], idx = new Map(C.cats.map((c,i) => [c,i]));
+  const all = C.cats.map(() => 0), by = {}; seq(CLASS_COUNT).forEach(c => by[c] = C.cats.map(() => 0));
+  STU.forEach(s => { const i = idx.get(C.of(s)); all[i]++; if (by[s.c3]) by[s.c3][i]++; });
+  const legend = '<div class="lgd">'+C.cats.map((c,i) => all[i] ? '<span><i style="background:'+C.color(i)+'"></i>'+C.name(c)+'<b>'+all[i]+'</b></span>' : '').join('')+'</div>';
+  const rows = seq(CLASS_COUNT).map(c => '<div class="rw" data-blk><div class="crow"><span class="cl">'+c+'반</span>'+barHTML(k, c, by[c], true)+'</div><div class="spslot"></div></div>').join('');
+  $('p-'+k).innerHTML = '<div class="ss"><div class="sbox"><div class="hh"><b>전체</b><small>'+STU.length+'명 · 영역을 눌러보세요</small></div>'
+    + '<div data-blk>'+barHTML(k, 'all', all, false)+'<div class="spslot"></div></div>'+legend+'</div>'
+    + '<div class="sbox"><div class="hh"><b>반별</b><small>1~12반</small></div>'+rows+'</div></div>';
+}
+const POP_EASE = 'cubic-bezier(.34,1.45,.64,1)';
+function closeSlot(slot){
+  slot.classList.remove('open'); clearTimeout(slot._t);
+  slot._t = setTimeout(() => { if (!slot.classList.contains('open')) slot.innerHTML = ''; }, 340);
+}
+function fillSlot(slot, b, k){
+  const C = STAT[k], whole = b.dataset.s === 'all', cat = C.cats[+b.dataset.ci];
+  const L = STU.filter(s => (whole || s.c3 === +b.dataset.s) && C.of(s) === cat);
+  slot.innerHTML = '<div class="spi"><div class="spb"><div class="hh"><b>'+C.name(cat)+'</b><small>'+(whole ? '전체' : b.dataset.s+'반')+'</small></div>'+listHTML(L)+'</div></div>';
+  const spb = slot.querySelector('.spb'); spb._L = L; spb._o = -1;
+  const z = (isPC() ? zoomNow() : (parseFloat($('hsheet').style.zoom) || 1)), br = b.getBoundingClientRect(), pr = spb.getBoundingClientRect();
+  const cx = (br.left + br.width/2 - pr.left) / z;   // 누른 영역 가운데를 가리키는 작은 화살표
+  spb.style.setProperty('--cx', cx+'px'); spb.style.transformOrigin = cx+'px 0';
+  return spb;
+}
+function pickStat(k, b){
+  const pane = $('p-'+k), ss = pane.querySelector('.ss'), z = (isPC() ? zoomNow() : (parseFloat($('hsheet').style.zoom) || 1));
+  const slot = b.closest('[data-blk]').querySelector('.spslot');
+  const prev = pane.querySelector('.ab.sel'), prevSlot = pane.querySelector('.spslot.open');
+  if (prev) prev.classList.remove('sel');
+  if (prev === b){ closeSlot(slot); ss.classList.remove('hasSel'); return; }
+  if (prevSlot && prevSlot !== slot) closeSlot(prevSlot);
+  b.classList.add('sel'); ss.classList.add('hasSel');
+  clearTimeout(slot._t);
+  const was = slot.classList.contains('open'), h0 = slot.getBoundingClientRect().height / z, spb = fillSlot(slot, b, k);
+  if (was){   // 같은 줄에서 다른 영역을 누르면 높이만 부드럽게 바뀜
+    const h1 = slot.getBoundingClientRect().height / z;
+    if (Math.abs(h0-h1) > 1) slot.querySelector('.spi').animate([{height:h0+'px'}, {height:h1+'px'}], {duration:280, easing:EASE_OUT});
+  } else { slot.offsetHeight; slot.classList.add('open'); }
+  spb.animate([{opacity:0, transform:'translateY(-8px) scale(.92)', filter:'blur(5px)'}, {opacity:1, transform:'none', filter:'blur(0)'}], {duration:340, easing:POP_EASE});
+  spb.querySelectorAll('.sc').forEach((c,i) => { if (i >= 40) return;
+    c.animate([{opacity:0, filter:'blur(6px)', transform:'translateY(8px) scale(.95)'}, {opacity:1, filter:'blur(0)', transform:'none'}],
+      {duration:380, delay:90+Math.min(i >> 2, 8)*40 + (i & 3)*18, easing:EASE2, fill:'backwards'}); });
+  setTimeout(() => {   // 펼쳐진 목록이 아래로 잘리면, 누른 막대가 보이는 선에서 스크롤
+    const sr = ss.getBoundingClientRect(), br = b.getBoundingClientRect(), er = slot.getBoundingClientRect();
+    const over = er.bottom - sr.bottom, room = br.top - sr.top - 10;
+    if (over > 0 && room > 0) ss.scrollBy({top:Math.min(over + 10, room), behavior:'smooth'});
+  }, 300);
+}
+['es','m'].forEach(k => $('p-'+k).addEventListener('click', e => {
+  const sc = e.target.closest('.sc'); if (sc){ const spb = sc.closest('.spb'); if (spb) pickIn(spb, spb._L, +sc.dataset.i); return; }
+  const b = e.target.closest('.ab'); if (b) pickStat(k, b);
+}));
+function prepHeat(){
+  buildStat('es'); buildStat('m');
+  const n = today(), k = (n.getMonth()+1)*100 + n.getDate();
+  document.querySelectorAll('#hgrid .hc').forEach(c => c.classList.toggle('td', +c.dataset.k === k));   // 열면 오늘 날짜가 먼저 선택됨
+  showHeat(HEAT[k] || MDAYS[n.getMonth()] >= n.getDate() ? k : 101, false);
+  showNext(); $('hbody').scrollTop = 0; setHTab('birth', false);
+}
+function openHeat(){
+  if (isPC()) return pcShow('heat');
+  prepHeat(); requestAnimationFrame(() => { placeInd($('hseg'), false); placeInd($('fg'), false); });
+  showPop($('hpop'), $('hbg'), $('hsheet'), [$('hsheet').querySelector('.ch'), $('hseg'), $('hnext'), $('hinfo'), $('hleg'), $('hgrid')], $('heat'));
+}
+function closeHeat(){ if (isPC()) return; hidePop($('hpop'), $('hbg'), $('hsheet')); }
+$('hgrid').addEventListener('click', e => { const c = e.target.closest('.hc'); if (c) showHeat(+c.dataset.k, true); });
+$('hinfo').addEventListener('click', e => { const sc = e.target.closest('.sc'); if (sc) pickIn($('hinfo'), hL, +sc.dataset.i); });
+$('hnext').addEventListener('click', e => {
+  const sc = e.target.closest('.sc'); if (sc){ pickIn($('hnext'), nextL, +sc.dataset.i); return; }
+  const h = e.target.closest('.hh.lk'); if (h) showHeat(+h.dataset.k, true);
+});
+$('heat').addEventListener('click', openHeat);
+$('hx').addEventListener('click', closeHeat);
+$('hpop').addEventListener('click', e => { if (e.target === $('hpop') || e.target === $('hbg')) closeHeat(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('hpop').hidden) closeHeat(); });
+document.documentElement.appendChild($('hpop'));
+document.documentElement.appendChild($('cpop'));
+$('cimg').addEventListener('error', () => $('cimgw').classList.add('noimg'));
+const openCredit = () => showPop($('cpop'), $('cbg'), $('csheet'), [$('cimgw'), $('cmade'), $('csub'), $('cclose')], $('hdr'), {blur:true});
+const closeCredit = () => hidePop($('cpop'), $('cbg'), $('csheet'));
+$('hdr').addEventListener('click', openCredit);
+$('cclose').addEventListener('click', closeCredit);
+$('cpop').addEventListener('click', e => { if (e.target === $('cpop') || e.target === $('cbg')) closeCredit(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('cpop').hidden) closeCredit(); });
+
+$('detail').addEventListener('click', openStu);
+$('px').addEventListener('click', closeStu);
+$('pop').addEventListener('click', e => { if (e.target === $('pop') || e.target === $('popbg')) closeStu(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('pop').hidden) closeStu(); });
+
+function introUI(){
+  [...$('app').children].forEach((el,i) => { if (!el.animate) return;
+    el.animate([{opacity:0, transform:'scale(1.07)', filter:'blur(8px)'}, {opacity:1, transform:'none', filter:'blur(0)'}],
+      {duration:700, delay:90+i*70, easing:'cubic-bezier(.16,.9,.24,1)', fill:'backwards'}); });
+}
+let lastPC = null;
+function setMode(pc){
+  clearTimeout(openTm);
+  [$('pop'), $('hpop')].forEach(p => { popTok.set(p, (popTok.get(p)||0)+1); p.hidden = true; p._closing = false; clearMorph(p); p.classList.remove('up'); (pc ? $('panel') : document.documentElement).appendChild(p); });
+  document.querySelectorAll('#detail.grown,#heat.grown').forEach(el => el.classList.remove('grown'));
+  $('detail').classList.remove('pcon'); $('heat').classList.remove('pcon');
+  pcCur = ''; syncLock();
+  if (pc) pcShow('heat');
+}
+const fit = () => {
+  const pc = isPC();
+  // PC는 16:9 기준 화면(1288×724)에 맞춰 확대, 모바일은 372px 폭에 맞춤
+  const z = pc ? Math.max(.6, Math.min(3, innerWidth/1288, innerHeight/724)) : Math.min(1.2, (innerWidth-24)/372);
+  COLS = pc ? 6 : 4;
+  document.body.style.zoom = z;
+  const rs = document.documentElement.style;
+  rs.setProperty('--z', z); rs.setProperty('--cols', COLS);
+  $('sheet').style.zoom = $('hsheet').style.zoom = pc ? '' : z;
+  $('csheet').style.zoom = z;
+  if (pc !== lastPC){ lastPC = pc; setMode(pc); }
+};
+fit(); addEventListener('resize', fit);
+addEventListener('resize', () => { placeInd($('fg'), false); placeInd($('hseg'), false); });
+addEventListener('resize', () => ['pop','hpop','cpop'].forEach(id => { const p = $(id); if (p._glass) syncGlass(p, p._sheet); }));
+// 날짜 자동 갱신: 페이지를 켜둔 채 자정이 지나도 날짜·급식·시간표가 바뀜
+let lastDay = ymd(today()), lastTarget = '';
+async function tick(resync){
+  if (resync) await syncClock();
+  setToday();
+  const k = ymd(today());
+  if (k !== lastDay){ lastDay = k; load(true); return; }     // 날짜가 바뀌면 새로 불러옴
+  const t = pickTarget();
+  if (t !== lastTarget){ lastTarget = t; render(true); }    // 낮 12시 이후 다음 날로 넘어가는 등
+}
+setInterval(() => tick(false), 20000);
+setInterval(() => tick(true), 10*60*1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(true); });
+
+placeCInd(false);
+
+// 서버 시각을 먼저 맞춘 뒤 날짜·급식을 그림 (실패해도 기기 시계로 진행)
+syncClock().finally(() => { 
+  setToday(); if (isPC() && pcCur === 'heat') prepHeat(); 
+  load(true).finally(() => {
+    // 모든 로딩 완료 후 스플래시 화면 부드럽게 숨김
+    setTimeout(() => {
+      $('splash').classList.add('hide'); introUI();
+    }, Math.max(220, 1500 - performance.now())); 
+  });
+});
+</script>
+</body>
+</html>
